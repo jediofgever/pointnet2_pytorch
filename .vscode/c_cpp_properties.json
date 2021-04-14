@@ -6,7 +6,8 @@
         "limitSymbolsToIncludedHeaders": true
       },
       "includePath": [
-        "/usr/include/**"
+        "/usr/include/**",
+        "/opt/libtorch/include/**"
       ],
       "name": "ROS"
     }
