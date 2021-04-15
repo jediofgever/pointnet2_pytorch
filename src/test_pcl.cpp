@@ -4,7 +4,6 @@
 
 int main(int argc, char const * argv[])
 {
-
   pcl::PointCloud<pcl::PointXYZRGB> test_cloud;
   if (!pcl::io::loadPCDFile("../data/error.pcd", test_cloud)) {
     std::cout << "Testing pcl, test cloud has:" << std::endl;
