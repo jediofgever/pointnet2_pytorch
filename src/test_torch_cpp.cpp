@@ -23,20 +23,42 @@ at::Tensor fps(at::Tensor * full_tensor, int num_samples, bool debug = false)
   }
 
   c10::IntArrayRef output_shape = {input_shape.front(), num_samples};
-  at::Tensor centroids = at::zeros(output_shape, device);
-  at::Tensor dists = at::ones(input_shape.slice(0, 2), device).multiply(1e5);
-  at::Tensor inds = at::randint(0, input_shape.slice(0, 2).back(), input_shape.front(), device);
-  at::Tensor batchlists = at::arange(0, input_shape.front(), device);
 
+  // tensor options for indice tensors
+  auto options =
+    torch::TensorOptions()
+    .dtype(torch::kLong)
+    .device(device)
+    .requires_grad(true);
+
+  at::Tensor centroids = at::zeros(output_shape, options);
+  at::Tensor distance =
+    at::ones(input_shape.slice(0, 2), torch::dtype(torch::kFloat32).device(device)).multiply(1e10);
+  at::Tensor farthest =
+    at::randint(0, input_shape.slice(0, 2).back(), input_shape.front(), options);
+  at::Tensor batch_indices = at::arange(0, input_shape.front(), options);
 
   for (int i = 0; i < num_samples; i++) {
-    centroids.index_put_({torch::indexing::Slice(), i}, inds);
-    std::cout << centroids.index({torch::indexing::Slice(), i}) << std::endl;
-    std::cout << "=========================" << std::endl;
+
+    centroids.index_put_({torch::indexing::Slice(), i}, farthest);
+
+    at::Tensor centroid =
+      full_tensor->index({batch_indices, farthest, torch::indexing::Slice()}).view(
+      {input_shape.front(), 1, 3});
+
+    at::Tensor dist = torch::sum((full_tensor->subtract(centroid)).pow(2), -1);
+
+    at::Tensor mask = dist < distance;
+
+    distance.index_put_({mask}, dist.index({mask}));
+
+    farthest = std::get<1>(torch::max(distance, -1));
+
   }
-
-
-  return fps_sampled_tensor;
+  if (debug) {
+    std::cout << "fps: resulting centroids." << centroids << std::endl;
+  }
+  return centroids;
 }
 
 /**
@@ -62,7 +84,7 @@ int main()
   torch::Device cuda_device = torch::kCUDA;
   at::Tensor test_tensor = at::rand(test_tensor_shape, cuda_device);
 
-  fps(&test_tensor, 10, false);
+  fps(&test_tensor, 10, true);
 
   return EXIT_SUCCESS;
 }
