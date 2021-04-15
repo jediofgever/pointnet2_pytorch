@@ -22,7 +22,19 @@ at::Tensor fps(at::Tensor * full_tensor, int num_samples, bool debug = false)
     std::cout << "fps: device." << device << std::endl;
   }
 
-  
+  c10::IntArrayRef output_shape = {input_shape.front(), num_samples};
+  at::Tensor centroids = at::zeros(output_shape, device);
+  at::Tensor dists = at::ones(input_shape.slice(0, 2), device).multiply(1e5);
+  at::Tensor inds = at::randint(0, input_shape.slice(0, 2).back(), input_shape.front(), device);
+  at::Tensor batchlists = at::arange(0, input_shape.front(), device);
+
+
+  for (int i = 0; i < num_samples; i++) {
+    centroids.index_put_({torch::indexing::Slice(), i}, inds);
+    std::cout << centroids.index({torch::indexing::Slice(), i}) << std::endl;
+    std::cout << "=========================" << std::endl;
+  }
+
 
   return fps_sampled_tensor;
 }
@@ -50,7 +62,7 @@ int main()
   torch::Device cuda_device = torch::kCUDA;
   at::Tensor test_tensor = at::rand(test_tensor_shape, cuda_device);
 
-  fps(&test_tensor, 50, true);
+  fps(&test_tensor, 10, false);
 
   return EXIT_SUCCESS;
 }
