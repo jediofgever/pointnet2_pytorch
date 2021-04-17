@@ -70,15 +70,18 @@ at::Tensor extract_tensor_from_indices(at::Tensor * input_indices, at::Tensor * 
     for (int j = 0; j < input_shape[1]; j++) {
       pcl::PointXYZRGB crr_point;
       int index = input_indices->index({i, j}).item<int>();
+
+      std::cout << " crr indc " << index;
+
       at::Tensor sampled_point = input_tensor->index({i, index});
-      extracted_tensor.index_put_({i}, sampled_point);
+      extracted_tensor.index_put_({i, j}, sampled_point);
     }
   }
   return extracted_tensor;
 }
 
 /**
- * @brief checks whether cuda is avail for use
+ * @brief checks and prints what device is available
  *
  */
 void test_if_cuda_avail()
@@ -87,21 +90,39 @@ void test_if_cuda_avail()
   if (torch::cuda::is_available()) {
     std::cout << "CUDA is available! Training on GPU possible." << std::endl;
     device = torch::kCUDA;
+  } else {
+    std::cout << "CUDA is NOT available! Training on CPU possible." << std::endl;
   }
 }
 
+/**
+ * @brief Convert a [B,N,3] shape Tensor to a PCL point cloud
+ *
+ * @param input_tensor
+ * @param cloud
+ */
+
+/**
+ * @brief
+ *
+ * @param input_tensor
+ * @param cloud
+ * @param point_color r,g,b
+ */
 void torch_tensor_to_pcl_cloud(
   const at::Tensor * input_tensor,
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, std::vector<double> point_color)
 {
   c10::IntArrayRef input_shape = input_tensor->sizes();
   for (int i = 0; i < input_shape[0]; i++) {
     for (int j = 0; j < input_shape[1]; j++) {
       pcl::PointXYZRGB crr_point;
-      crr_point.x = input_tensor->index({i, j, 0}).item<float>() * 10.0;
-      crr_point.y = input_tensor->index({i, j, 1}).item<float>() * 10.0;
-      crr_point.z = input_tensor->index({i, j, 2}).item<float>() * 10.0;
-      crr_point.g = 1.0;
+      crr_point.x = input_tensor->index({i, j, 0}).item<float>();
+      crr_point.y = input_tensor->index({i, j, 1}).item<float>();
+      crr_point.z = input_tensor->index({i, j, 2}).item<float>();
+      crr_point.r = point_color.at(0);
+      crr_point.g = point_color.at(1);
+      crr_point.b = point_color.at(2);
       cloud->points.push_back(crr_point);
     }
   }
@@ -115,11 +136,11 @@ int main()
   test_if_cuda_avail();
 
   // to test FPS(Furthest-point-sampleing algorithm)
-  c10::IntArrayRef test_tensor_shape = {4, 4, 3};
+  c10::IntArrayRef test_tensor_shape = {4, 512, 3};
   torch::Device cuda_device = torch::kCUDA;
   at::Tensor test_tensor = at::rand(test_tensor_shape, cuda_device);
 
-  at::Tensor fps_sampled_tensor_indices = furthest_point_sampling(&test_tensor, 1, false);
+  at::Tensor fps_sampled_tensor_indices = furthest_point_sampling(&test_tensor, 32, false);
   at::Tensor fps_sampled_tensor = extract_tensor_from_indices(
     &fps_sampled_tensor_indices,
     &test_tensor);
@@ -131,9 +152,14 @@ int main()
   std::cout << "fps_sampled_tensor_indices: \n" << fps_sampled_tensor_indices << std::endl;
   std::cout << "fps_sampled_tensor:  \n" << fps_sampled_tensor << std::endl;
 
-  torch_tensor_to_pcl_cloud(&test_tensor, full_cloud);
-  torch_tensor_to_pcl_cloud(&fps_sampled_tensor, full_cloud);
+  torch_tensor_to_pcl_cloud(&test_tensor, full_cloud, std::vector<double>({255.0, 0, 0}));
+  torch_tensor_to_pcl_cloud(
+    &fps_sampled_tensor, fps_sampled_cloud,
+    std::vector<double>({0.0, 255.0, 0}));
 
+  auto merged_cloud = *fps_sampled_cloud + *full_cloud;
+
+  pcl::io::savePCDFile("../data/rand.pcd", merged_cloud, false);
 
   return EXIT_SUCCESS;
 
