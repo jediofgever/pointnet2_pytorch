@@ -95,6 +95,13 @@ void test_if_cuda_avail()
   }
 }
 
+/**
+ * @brief retruns a Tensor containing squared distance from each of point in source tensor to each point in target_point
+ *
+ * @param source_tensor
+ * @param target_tensor
+ * @return at::Tensor
+ */
 at::Tensor square_distance(at::Tensor * source_tensor, at::Tensor * target_tensor)
 {
   c10::IntArrayRef source_tensor_shape = source_tensor->sizes();
@@ -109,6 +116,75 @@ at::Tensor square_distance(at::Tensor * source_tensor, at::Tensor * target_tenso
     {source_tensor_shape[0], 1, target_tensor_shape[1]});
 
   return dist;
+}
+
+/**
+ * @brief     Input:
+              radius: local region radius
+              nsample: max sample number in local region
+              xyz: all points, [B, N, C]
+              new_xyz: query points, [B, S, C]
+              Return:
+              group_idx: grouped points index, [B, S, nsample]
+ *
+ * @param radius
+ * @param nsample
+ * @param xyz
+ * @param new_xyz
+ * @return at::Tensor
+ */
+at::Tensor query_ball_point(double radius, int nsample, at::Tensor * xyz, at::Tensor * new_xyz)
+{
+  c10::IntArrayRef xyz_shape = xyz->sizes();
+  c10::IntArrayRef new_xyz_shape = new_xyz->sizes();
+  int B, N, C, S;
+  B = xyz_shape[0];
+  N = xyz_shape[1];
+  C = xyz_shape[2];
+  S = new_xyz_shape[1];
+  auto group_idx =
+    torch::arange(
+    {N},
+    torch::dtype(torch::kFloat32).device(xyz->device())).view({1, 1, N}).repeat({B, S, 1});
+  auto sqrdists = square_distance(new_xyz, xyz);
+  group_idx.index({sqrdists > std::pow(radius, 2)}) = N;
+
+  group_idx = std::get<0>(group_idx.sort(-1)).index(
+    {torch::indexing::Slice(), torch::indexing::Slice(),
+      torch::indexing::Slice(0, torch::indexing::None, nsample)});
+  auto group_first = group_idx
+    .index({torch::indexing::Slice(), torch::indexing::Slice(), 0})
+    .view({B, S, 1})
+    .repeat({1, 1, nsample});
+
+  auto mask = group_idx == N;
+  group_idx.index({mask}) = group_first.index({mask});
+  return group_idx;
+}
+
+/**
+ * @brief     Input:
+              npoint: Number of point for FPS
+              radius: Radius of ball query
+              nsample: Number of point for each ball query
+              xyz: Old feature of points position data, [B, N, C]
+              points: New feature of points data, [B, N, D]
+              Return:
+              new_xyz: sampled points position data, [B, npoint, C]
+              new_points: sampled points data, [B, npoint, nsample, C+D]
+ * 
+ * @param npoint 
+ * @param radius 
+ * @param nsample 
+ * @param xyz 
+ * @param points 
+ * @return std::pair<at::Tensor, at::Tensor> 
+ */
+std::pair<at::Tensor, at::Tensor> sample_and_group(
+  int npoint, double radius, int nsample,
+  at::Tensor * xyz, at::Tensor * points)
+{
+
 }
 
 /**
@@ -178,6 +254,8 @@ int main()
   std::cout << "source_tensor: \n" << source_tensor << std::endl;
   std::cout << "target_tensor: \n" << target_tensor << std::endl;
   std::cout << "distance_tensor:  \n" << distance_tensor << std::endl;
+
+  //
 
   return EXIT_SUCCESS;
 
