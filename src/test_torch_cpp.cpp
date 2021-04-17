@@ -12,7 +12,7 @@
  * @param num_samples
  * @return at::Tensor
  */
-at::Tensor furthest_point_sampling(at::Tensor * input_tensor, int num_samples, bool debug = false)
+at::Tensor farthest_point_sample(at::Tensor * input_tensor, int num_samples, bool debug = false)
 {
   torch::Device device = input_tensor->device();
   c10::IntArrayRef input_shape = input_tensor->sizes();
@@ -57,7 +57,7 @@ at::Tensor furthest_point_sampling(at::Tensor * input_tensor, int num_samples, b
   return centroids;
 }
 
-at::Tensor extract_tensor_from_indices(at::Tensor * input_indices, at::Tensor * input_tensor)
+at::Tensor extract_tensor_from_indices(at::Tensor * input_tensor, at::Tensor * input_indices)
 {
   // This indices are usally
   c10::IntArrayRef input_shape = input_indices->sizes();
@@ -172,19 +172,32 @@ at::Tensor query_ball_point(double radius, int nsample, at::Tensor * xyz, at::Te
               Return:
               new_xyz: sampled points position data, [B, npoint, C]
               new_points: sampled points data, [B, npoint, nsample, C+D]
- * 
- * @param npoint 
- * @param radius 
- * @param nsample 
- * @param xyz 
- * @param points 
- * @return std::pair<at::Tensor, at::Tensor> 
+ *
+ * @param npoint
+ * @param radius
+ * @param nsample
+ * @param xyz
+ * @param points
+ * @return std::pair<at::Tensor, at::Tensor>
  */
 std::pair<at::Tensor, at::Tensor> sample_and_group(
   int npoint, double radius, int nsample,
   at::Tensor * xyz, at::Tensor * points)
 {
 
+  c10::IntArrayRef xyz_shape = xyz->sizes();
+  int B, N, C;
+  B = xyz_shape[0];
+  N = xyz_shape[1];
+  C = xyz_shape[2];
+
+  auto fps_sampled_indices = farthest_point_sample(xyz, npoint, false);
+  auto new_xyz = extract_tensor_from_indices(xyz, &fps_sampled_indices);
+  auto idx = query_ball_point(radius, nsample, xyz, &new_xyz);
+  auto grouped_xyz = extract_tensor_from_indices(xyz, &idx);
+  grouped_xyz -= new_xyz.view({B, npoint, 1, C});
+
+  return std::make_pair(*xyz, *xyz);
 }
 
 /**
@@ -225,10 +238,11 @@ int main()
   torch::Device cuda_device = torch::kCUDA;
   at::Tensor test_tensor = at::rand(test_tensor_shape, cuda_device);
 
-  at::Tensor fps_sampled_tensor_indices = furthest_point_sampling(&test_tensor, 32, false);
+  at::Tensor fps_sampled_tensor_indices = farthest_point_sample(&test_tensor, 32, false);
   at::Tensor fps_sampled_tensor = extract_tensor_from_indices(
-    &fps_sampled_tensor_indices,
-    &test_tensor);
+    &test_tensor,
+    &fps_sampled_tensor_indices
+  );
 
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr full_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr fps_sampled_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
