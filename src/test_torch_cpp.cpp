@@ -215,6 +215,47 @@ std::pair<at::Tensor, at::Tensor> sample_and_group(
 }
 
 /**
+ * @brief     Input:
+              xyz: input points position data, [B, N, C]
+              points: input points data, [B, N, D]
+              Return:
+              new_xyz: sampled points position data, [B, 1, C]
+              new_points: sampled points data, [B, 1, N, C+D]
+ * @param xyz
+ * @param points
+ * @return std::pair<at::Tensor, at::Tensor>
+ */
+std::pair<at::Tensor, at::Tensor> sample_and_group_all(at::Tensor * xyz, at::Tensor * points)
+{
+  c10::IntArrayRef xyz_shape = xyz->sizes();
+  c10::IntArrayRef points_shape = points->sizes();
+
+  int B, N, C, D;
+  B = xyz_shape[0];
+  N = xyz_shape[1];
+  C = xyz_shape[2];
+  D = points_shape[2];
+
+  auto new_xyz = at::zeros(
+    {B, 1, C},
+    xyz->device());
+
+  auto grouped_xyz = xyz->view({B, 1, N, C});
+
+  at::Tensor new_points = at::zeros(
+    {B, 1, N, C + D},
+    xyz->device());
+
+  if (points->ndimension()) {
+    new_points = torch::cat({grouped_xyz, xyz->view({B, 1, N, -1})}, -1);
+  } else {
+    new_points = grouped_xyz;
+  }
+  return std::make_pair(new_xyz, new_points);
+}
+
+
+/**
  * @brief
  *
  * @param input_tensor
