@@ -95,12 +95,21 @@ void test_if_cuda_avail()
   }
 }
 
-/**
- * @brief Convert a [B,N,3] shape Tensor to a PCL point cloud
- *
- * @param input_tensor
- * @param cloud
- */
+at::Tensor square_distance(at::Tensor * source_tensor, at::Tensor * target_tensor)
+{
+  c10::IntArrayRef source_tensor_shape = source_tensor->sizes();
+  c10::IntArrayRef target_tensor_shape = target_tensor->sizes();
+
+  auto dist = -2 * torch::matmul(*source_tensor, target_tensor->permute({0, 2, 1}));
+
+  dist += torch::sum(source_tensor->pow(2), -1).view(
+    {source_tensor_shape[0], source_tensor_shape[1], 1});
+
+  dist += torch::sum(target_tensor->pow(2), -1).view(
+    {source_tensor_shape[0], 1, target_tensor_shape[1]});
+
+  return dist;
+}
 
 /**
  * @brief
@@ -160,6 +169,15 @@ int main()
   auto merged_cloud = *fps_sampled_cloud + *full_cloud;
 
   pcl::io::savePCDFile("../data/rand.pcd", merged_cloud, false);
+
+  // Test Square distance function
+  at::Tensor source_tensor = at::rand({4, 4, 3}, cuda_device);
+  at::Tensor target_tensor = at::zeros({4, 1, 3}, cuda_device);
+  at::Tensor distance_tensor = square_distance(&source_tensor, &target_tensor);
+
+  std::cout << "source_tensor: \n" << source_tensor << std::endl;
+  std::cout << "target_tensor: \n" << target_tensor << std::endl;
+  std::cout << "distance_tensor:  \n" << distance_tensor << std::endl;
 
   return EXIT_SUCCESS;
 
