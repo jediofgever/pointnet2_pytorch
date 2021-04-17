@@ -186,10 +186,13 @@ std::pair<at::Tensor, at::Tensor> sample_and_group(
 {
 
   c10::IntArrayRef xyz_shape = xyz->sizes();
-  int B, N, C;
+  c10::IntArrayRef points_shape = points->sizes();
+
+  int B, N, C, D;
   B = xyz_shape[0];
   N = xyz_shape[1];
   C = xyz_shape[2];
+  D = points_shape[2];
 
   auto fps_sampled_indices = farthest_point_sample(xyz, npoint, false);
   auto new_xyz = extract_tensor_from_indices(xyz, &fps_sampled_indices);
@@ -197,7 +200,18 @@ std::pair<at::Tensor, at::Tensor> sample_and_group(
   auto grouped_xyz = extract_tensor_from_indices(xyz, &idx);
   grouped_xyz -= new_xyz.view({B, npoint, 1, C});
 
-  return std::make_pair(*xyz, *xyz);
+  at::Tensor new_points = at::zeros(
+    {B, npoint, nsample, C + D},
+    xyz->device());
+
+  if (points->ndimension()) {
+    auto grouped_points = extract_tensor_from_indices(points, &idx);
+    new_points = torch::cat({grouped_xyz, grouped_points}, -1);
+  } else {
+    new_points = grouped_xyz;
+  }
+
+  return std::make_pair(new_xyz, new_points);
 }
 
 /**
