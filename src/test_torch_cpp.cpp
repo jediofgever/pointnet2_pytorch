@@ -71,10 +71,32 @@ at::Tensor extract_tensor_from_indices(at::Tensor * input_tensor, at::Tensor * i
       pcl::PointXYZRGB crr_point;
       int index = input_indices->index({i, j}).item<int>();
 
-      std::cout << " crr indc " << index;
-
       at::Tensor sampled_point = input_tensor->index({i, index});
       extracted_tensor.index_put_({i, j}, sampled_point);
+    }
+  }
+  return extracted_tensor;
+}
+
+at::Tensor extract_tensor_from_grouped_indices(
+  at::Tensor * input_tensor,
+  at::Tensor * input_indices)
+{
+  // This indices are usally
+  c10::IntArrayRef input_shape = input_indices->sizes();
+  at::Tensor extracted_tensor = at::zeros(
+    {input_shape[0],
+      input_shape[1] * input_shape[2], 3},
+    input_indices->device());
+
+  for (int i = 0; i < input_shape[0]; i++) {
+    for (int j = 0; j < input_shape[1]; j++) {
+      for (int k = 0; k < input_shape[2]; k++) {
+        pcl::PointXYZRGB crr_point;
+        int index = input_indices->index({i, j, k}).item<int>();
+        at::Tensor sampled_point = input_tensor->index({i, index});
+        extracted_tensor.index_put_({i, j * input_shape[2] + k}, sampled_point);
+      }
     }
   }
   return extracted_tensor;
@@ -148,14 +170,14 @@ at::Tensor query_ball_point(double radius, int nsample, at::Tensor * xyz, at::Te
     torch::arange(
     {N},
     torch::dtype(torch::kLong).device(xyz->device())).view({1, 1, N}).repeat({B, S, 1});
-  
+
   auto sqrdists = square_distance(new_xyz, xyz);
 
-  group_idx.index({sqrdists > std::pow(radius, 2)}) = N;
+  group_idx.index_put_({sqrdists > std::pow(radius, 2)}, N);
 
   group_idx = std::get<0>(group_idx.sort(-1)).index(
     {torch::indexing::Slice(), torch::indexing::Slice(),
-      torch::indexing::Slice(0, torch::indexing::None, nsample)});
+      torch::indexing::Slice(torch::indexing::None, nsample)});
 
   auto group_first = group_idx
     .index({torch::indexing::Slice(), torch::indexing::Slice(), 0})
@@ -163,7 +185,8 @@ at::Tensor query_ball_point(double radius, int nsample, at::Tensor * xyz, at::Te
     .repeat({1, 1, nsample});
 
   auto mask = group_idx == N;
-  group_idx.index({mask}) = group_first.index({mask});
+  group_idx.index_put_({mask}, group_first.index({mask}) );
+
   return group_idx;
 }
 
@@ -204,16 +227,17 @@ std::pair<at::Tensor, at::Tensor> sample_and_group(
   C = xyz_shape[2];
 
   auto fps_sampled_indices = farthest_point_sample(xyz, npoint, false);
-
   auto new_xyz = extract_tensor_from_indices(xyz, &fps_sampled_indices);
-
   auto idx = query_ball_point(radius, nsample, xyz, &new_xyz);
 
-  auto grouped_xyz = extract_tensor_from_indices(xyz, &idx);
+  std::cout << "fps_sampled_indices: \n" << fps_sampled_indices << std::endl;
+  std::cout << "idx:  \n" << idx << std::endl;
 
-  grouped_xyz -= new_xyz.view({B, npoint, 1, C});
+  //auto grouped_xyz = extract_tensor_from_indices(xyz, &idx);
 
-  at::Tensor new_points = at::zeros(
+  //grouped_xyz -= new_xyz.view({B, npoint, 1, C});
+
+  /*at::Tensor new_points = at::zeros(
     {B, npoint, nsample, C + D},
     xyz->device());
 
@@ -222,9 +246,9 @@ std::pair<at::Tensor, at::Tensor> sample_and_group(
     new_points = torch::cat({grouped_xyz, grouped_points}, -1);
   } else {
     new_points = grouped_xyz;
-  }
+  }*/
 
-  return std::make_pair(new_xyz, new_points);
+  return std::make_pair(new_xyz, new_xyz);
 }
 
 /**
@@ -295,7 +319,7 @@ int main()
   test_if_cuda_avail();
 
   // to test FPS(Furthest-point-sampleing algorithm) ======================
-  c10::IntArrayRef test_tensor_shape = {4, 512, 3};
+  c10::IntArrayRef test_tensor_shape = {4, 1024, 3};
   torch::Device cuda_device = torch::kCUDA;
   at::Tensor test_tensor = at::rand(test_tensor_shape, cuda_device);
 
@@ -305,15 +329,16 @@ int main()
     &fps_sampled_tensor_indices
   );
 
+
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr full_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr fps_sampled_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr sampled_and_grouped_cloud(
     new pcl::PointCloud<pcl::PointXYZRGB>);
 
 
-  std::cout << "test_tensor: \n" << test_tensor << std::endl;
-  std::cout << "fps_sampled_tensor_indices: \n" << fps_sampled_tensor_indices << std::endl;
-  std::cout << "fps_sampled_tensor:  \n" << fps_sampled_tensor << std::endl;
+  //std::cout << "test_tensor: \n" << test_tensor << std::endl;
+  //std::cout << "fps_sampled_tensor_indices: \n" << fps_sampled_tensor_indices << std::endl;
+  //std::cout << "fps_sampled_tensor:  \n" << fps_sampled_tensor << std::endl;
 
   torch_tensor_to_pcl_cloud(&test_tensor, full_cloud, std::vector<double>({255.0, 0, 0}));
   torch_tensor_to_pcl_cloud(
@@ -321,13 +346,24 @@ int main()
     std::vector<double>({0.0, 255.0, 0}));
 
   // Test Square distance function ================================
-  at::Tensor source_tensor = at::rand({4, 4, 3}, cuda_device);
-  at::Tensor target_tensor = at::zeros({4, 1, 3}, cuda_device);
-  at::Tensor distance_tensor = square_distance(&source_tensor, &target_tensor);
-
-  std::cout << "source_tensor: \n" << source_tensor << std::endl;
-  std::cout << "target_tensor: \n" << target_tensor << std::endl;
+  at::Tensor distance_tensor = square_distance(&fps_sampled_tensor, &test_tensor);
   std::cout << "distance_tensor:  \n" << distance_tensor << std::endl;
+
+  // Test query_ball_point function ================================
+  at::Tensor group_idx = query_ball_point(0.02, 2, &test_tensor, &fps_sampled_tensor);
+
+  //std::cout << "test_tensor: \n" << test_tensor.sizes() << std::endl;
+  //std::cout << "fps_sampled_tensor: \n" << fps_sampled_tensor.sizes() << std::endl;
+  std::cout << "group_idx:  \n" << group_idx << std::endl;
+
+  auto grouped_xyz = extract_tensor_from_grouped_indices(&test_tensor, &group_idx);
+  torch_tensor_to_pcl_cloud(
+    &grouped_xyz, sampled_and_grouped_cloud,
+    std::vector<double>({0.0, 0, 255.0}));
+
+  auto merged_cloud = *fps_sampled_cloud + *sampled_and_grouped_cloud + *full_cloud;
+
+  pcl::io::savePCDFile("../data/rand.pcd", merged_cloud, false);
 
   // Test sample and group
   /*
@@ -341,15 +377,16 @@ int main()
       new_xyz: sampled points position data, [B, npoint, C]
       new_points: sampled points data, [B, npoint, nsample, C+D]
   */
-  auto new_xyz_and_points = sample_and_group(32, 0.2, 16, &test_tensor, nullptr);
 
-  torch_tensor_to_pcl_cloud(
+  //auto new_xyz_and_points = sample_and_group(16, 0.02, 8, &test_tensor, nullptr);
+
+  /*torch_tensor_to_pcl_cloud(
     &new_xyz_and_points.first, sampled_and_grouped_cloud,
     std::vector<double>({0.0, 0, 255.0}));
 
   auto merged_cloud = *fps_sampled_cloud + *full_cloud + *sampled_and_grouped_cloud;
 
-  pcl::io::savePCDFile("../data/rand.pcd", merged_cloud, false);
+  pcl::io::savePCDFile("../data/rand.pcd", merged_cloud, false);*/
 
 
   return EXIT_SUCCESS;
