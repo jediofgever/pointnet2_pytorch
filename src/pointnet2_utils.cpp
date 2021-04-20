@@ -1,18 +1,23 @@
-#include <vector>
-#include <torch/torch.h>
-#include <torch/cuda.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/visualization/cloud_viewer.h>
-#include <iostream>
+// Copyright (c) 2020 Fetullah Atas, Norwegian University of Life Sciences
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-/**
- * @brief  Sample num_samples points from points
-           according to farthest point sampling (FPS) algorithm.
- * @param input_tensor
- * @param num_samples
- * @return at::Tensor
- */
-at::Tensor farthest_point_sample(at::Tensor * input_tensor, int num_samples, bool debug = false)
+#include <pointnet2_pytorch/pointnet2_utils.hpp>
+
+namespace pointnet2_utils
+{
+
+at::Tensor farthest_point_sample(at::Tensor * input_tensor, int num_samples, bool debug)
 {
   torch::Device device = input_tensor->device();
   c10::IntArrayRef input_shape = input_tensor->sizes();
@@ -102,10 +107,6 @@ at::Tensor extract_tensor_from_grouped_indices(
   return extracted_tensor;
 }
 
-/**
- * @brief checks and prints what device is available
- *
- */
 void test_if_cuda_avail()
 {
   torch::Device device = torch::kCPU;
@@ -117,13 +118,6 @@ void test_if_cuda_avail()
   }
 }
 
-/**
- * @brief retruns a Tensor containing squared distance from each of point in source tensor to each point in target_point
- *
- * @param source_tensor
- * @param target_tensor
- * @return at::Tensor
- */
 at::Tensor square_distance(at::Tensor * source_tensor, at::Tensor * target_tensor)
 {
   c10::IntArrayRef source_tensor_shape = source_tensor->sizes();
@@ -140,21 +134,6 @@ at::Tensor square_distance(at::Tensor * source_tensor, at::Tensor * target_tenso
   return dist;
 }
 
-/**
- * @brief     Input:
-              radius: local region radius
-              nsample: max sample number in local region
-              xyz: all points, [B, N, C]
-              new_xyz: query points, [B, S, C]
-              Return:
-              group_idx: grouped points index, [B, S, nsample]
- *
- * @param radius
- * @param nsample
- * @param xyz
- * @param new_xyz
- * @return at::Tensor
- */
 at::Tensor query_ball_point(double radius, int nsample, at::Tensor * xyz, at::Tensor * new_xyz)
 {
   c10::IntArrayRef xyz_shape = xyz->sizes();
@@ -190,24 +169,6 @@ at::Tensor query_ball_point(double radius, int nsample, at::Tensor * xyz, at::Te
   return group_idx;
 }
 
-/**
- * @brief     Input:
-              npoint: Number of point for FPS
-              radius: Radius of ball query
-              nsample: Number of point for each ball query
-              xyz: Old feature of points position data, [B, N, C]
-              points: New feature of points data, [B, N, D]
-              Return:
-              new_xyz: sampled points position data, [B, npoint, C]
-              new_points: sampled points data, [B, npoint, nsample, C+D]
- *
- * @param npoint
- * @param radius
- * @param nsample
- * @param xyz
- * @param points
- * @return std::pair<at::Tensor, at::Tensor>
- */
 std::pair<at::Tensor, at::Tensor> sample_and_group(
   int npoint, double radius, int nsample,
   at::Tensor * xyz, at::Tensor * points)
@@ -245,13 +206,6 @@ std::pair<at::Tensor, at::Tensor> sample_and_group(
   return std::make_pair(new_xyz, new_points);
 }
 
-/**
- * @brief
- *
- * @param input_tensor
- * @param cloud
- * @param point_color r,g,b
- */
 void torch_tensor_to_pcl_cloud(
   const at::Tensor * input_tensor,
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, std::vector<double> point_color)
@@ -289,68 +243,4 @@ void torch_tensor_to_pcl_cloud(
   cloud->width = 1;
   cloud->height = cloud->points.size();
 }
-
-int main()
-{
-  // check if cuda is there
-  test_if_cuda_avail();
-
-  // Initialize some random
-  int kB = 16; // Batch
-  int kN = 2048; // Number of points in each batch
-  int kFPS_SAMPLES = 128; // FPS going to sample kFPS_SAMPLES points
-  int kC = 3; // number of channels
-  int kMAX_N_POINTS_IN_RADIUS = 8;
-  double kRADIUS = 0.1;
-
-
-  c10::IntArrayRef test_tensor_shape = {kB, kN, kC};
-  torch::Device cuda_device = torch::kCUDA;
-  at::Tensor test_tensor = at::rand(test_tensor_shape, cuda_device);
-
-  // to test FPS(Furthest-point-sampleing algorithm) =============================
-  at::Tensor fps_sampled_tensor_indices = farthest_point_sample(&test_tensor, kFPS_SAMPLES, false);
-  at::Tensor fps_sampled_tensor = extract_tensor_from_indices(
-    &test_tensor,
-    &fps_sampled_tensor_indices
-  );
-  //std::cout << "test_tensor: \n" << test_tensor << std::endl;
-  //std::cout << "fps_sampled_tensor_indices: \n" << fps_sampled_tensor_indices << std::endl;
-  //std::cout << "fps_sampled_tensor:  \n" << fps_sampled_tensor << std::endl;
-
-  // Test Square distance function ================================================
-  at::Tensor distance_tensor = square_distance(&fps_sampled_tensor, &test_tensor);
-  // std::cout << "distance_tensor:  \n" << distance_tensor << std::endl;
-
-  // Test query_ball_point function ===============================================
-  at::Tensor group_idx = query_ball_point(
-    kRADIUS, kMAX_N_POINTS_IN_RADIUS, &test_tensor,
-    &fps_sampled_tensor);
-  //std::cout << "test_tensor: \n" << test_tensor.sizes() << std::endl;
-  //std::cout << "fps_sampled_tensor: \n" << fps_sampled_tensor.sizes() << std::endl;
-  //std::cout << "group_idx:  \n" << group_idx << std::endl;
-  auto grouped_xyz = extract_tensor_from_grouped_indices(&test_tensor, &group_idx);
-
-  // Test Sample and Group ==========================================================
-  auto new_xyz_and_points = sample_and_group(
-    kFPS_SAMPLES, kRADIUS, kMAX_N_POINTS_IN_RADIUS,
-    &test_tensor, &test_tensor);
-
-  // Visualize results =============================================================
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr full_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr fps_sampled_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr sampled_and_grouped_cloud(
-    new pcl::PointCloud<pcl::PointXYZRGB>);
-  torch_tensor_to_pcl_cloud(&test_tensor, full_cloud, std::vector<double>({255.0, 0, 0}));
-  torch_tensor_to_pcl_cloud(
-    &fps_sampled_tensor, fps_sampled_cloud,
-    std::vector<double>({0.0, 255.0, 0}));
-  torch_tensor_to_pcl_cloud(
-    &new_xyz_and_points.second, sampled_and_grouped_cloud,
-    std::vector<double>({0.0, 0, 255.0}));
-
-  auto merged_cloud = *fps_sampled_cloud + *sampled_and_grouped_cloud + *full_cloud;
-  pcl::io::savePCDFile("../data/rand.pcd", merged_cloud, false);
-
-  return EXIT_SUCCESS;
-}
+}  // namespace pointnet2_utils

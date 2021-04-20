@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(pcl_learning)
+project(pointnet2_pytorch)
 
 # specify the C++ standard
 set(CMAKE_CXX_STANDARD 17)
@@ -20,22 +20,16 @@ include_directories(
     ${Torch_INCLUDE_DIRS}
     ${CUDA_INCLUDE_DIRS})
 
-add_executable(test_pcl src/test_pcl.cpp)
-target_link_libraries(test_pcl ${PCL_LIBRARIES})
+add_executable(test_pointnet2_utils src/test_pointnet2_utils.cpp
+                                    src/pointnet2_utils.cpp)
+target_link_libraries(test_pointnet2_utils ${PCL_LIBRARIES} ${TORCH_LIBRARIES})
 
-add_executable(test_torch_cpp src/test_torch_cpp.cpp)
-target_link_libraries(test_torch_cpp ${PCL_LIBRARIES} ${TORCH_LIBRARIES})
-
-CUDA_ADD_EXECUTABLE(cuda_test src/cuda_test.cu)
-target_link_libraries(cuda_test ${CUDA_LIBRARIES})
-
-install(TARGETS test_pcl test_torch_cpp
-                cuda_test
+install(TARGETS test_pointnet2_utils
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin)
 
-install(TARGETS test_pcl test_torch_cpp cuda_test
+install(TARGETS test_pointnet2_utils 
         RUNTIME DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY include/
