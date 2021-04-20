@@ -18,7 +18,7 @@
 int main()
 {
   // check if cuda is there
-  test_if_cuda_avail();
+  pointnet2_utils::check_avail_device();
 
   // Initialize some random
   int kB = 16; // Batch
@@ -34,8 +34,11 @@ int main()
   at::Tensor test_tensor = at::rand(test_tensor_shape, cuda_device);
 
   // to test FPS(Furthest-point-sampleing algorithm) =============================
-  at::Tensor fps_sampled_tensor_indices = farthest_point_sample(&test_tensor, kFPS_SAMPLES, false);
-  at::Tensor fps_sampled_tensor = extract_tensor_from_indices(
+  at::Tensor fps_sampled_tensor_indices = pointnet2_utils::farthest_point_sample(
+    &test_tensor,
+    kFPS_SAMPLES,
+    false);
+  at::Tensor fps_sampled_tensor = pointnet2_utils::extract_tensor_from_indices(
     &test_tensor,
     &fps_sampled_tensor_indices
   );
@@ -44,20 +47,20 @@ int main()
   //std::cout << "fps_sampled_tensor:  \n" << fps_sampled_tensor << std::endl;
 
   // Test Square distance function ================================================
-  at::Tensor distance_tensor = square_distance(&fps_sampled_tensor, &test_tensor);
+  at::Tensor distance_tensor = pointnet2_utils::square_distance(&fps_sampled_tensor, &test_tensor);
   // std::cout << "distance_tensor:  \n" << distance_tensor << std::endl;
 
   // Test query_ball_point function ===============================================
-  at::Tensor group_idx = query_ball_point(
+  at::Tensor group_idx = pointnet2_utils::query_ball_point(
     kRADIUS, kMAX_N_POINTS_IN_RADIUS, &test_tensor,
     &fps_sampled_tensor);
   //std::cout << "test_tensor: \n" << test_tensor.sizes() << std::endl;
   //std::cout << "fps_sampled_tensor: \n" << fps_sampled_tensor.sizes() << std::endl;
   //std::cout << "group_idx:  \n" << group_idx << std::endl;
-  auto grouped_xyz = extract_tensor_from_grouped_indices(&test_tensor, &group_idx);
+  auto grouped_xyz = pointnet2_utils::extract_tensor_from_grouped_indices(&test_tensor, &group_idx);
 
   // Test Sample and Group ==========================================================
-  auto new_xyz_and_points = sample_and_group(
+  auto new_xyz_and_points = pointnet2_utils::sample_and_group(
     kFPS_SAMPLES, kRADIUS, kMAX_N_POINTS_IN_RADIUS,
     &test_tensor, &test_tensor);
 
@@ -66,16 +69,19 @@ int main()
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr fps_sampled_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr sampled_and_grouped_cloud(
     new pcl::PointCloud<pcl::PointXYZRGB>);
-  torch_tensor_to_pcl_cloud(&test_tensor, full_cloud, std::vector<double>({255.0, 0, 0}));
-  torch_tensor_to_pcl_cloud(
+  pointnet2_utils::torch_tensor_to_pcl_cloud(
+    &test_tensor, full_cloud,
+    std::vector<double>({255.0, 0, 0}));
+  pointnet2_utils::torch_tensor_to_pcl_cloud(
     &fps_sampled_tensor, fps_sampled_cloud,
     std::vector<double>({0.0, 255.0, 0}));
-  torch_tensor_to_pcl_cloud(
+  pointnet2_utils::torch_tensor_to_pcl_cloud(
     &new_xyz_and_points.second, sampled_and_grouped_cloud,
     std::vector<double>({0.0, 0, 255.0}));
 
   auto merged_cloud = *fps_sampled_cloud + *sampled_and_grouped_cloud + *full_cloud;
   pcl::io::savePCDFile("../data/rand.pcd", merged_cloud, false);
 
+  std::cout << "Pointnet2 utils test Successful." << std::endl;
   return EXIT_SUCCESS;
 }

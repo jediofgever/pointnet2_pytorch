@@ -8,7 +8,8 @@
       "includePath": [
         "/usr/include/**",
         "/opt/libtorch/include/**",
-        "/usr/local/cuda/include/**"
+        "/usr/local/cuda/include/**",
+        "/home/ros2-foxy/pointnet2_pytorch/include/**"
       ],
       "name": "ROS"
     }

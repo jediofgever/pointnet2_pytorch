@@ -40,17 +40,23 @@ at::Tensor farthest_point_sample(at::Tensor * input_tensor, int num_samples, boo
  */
 at::Tensor extract_tensor_from_indices(at::Tensor * input_tensor, at::Tensor * input_indices);
 
-
+/**
+ * @brief very similar function to extract_tensor_from_indices, but assumes input_tensor has shape of : [B, nsample, npoint, C]
+ *
+ * @param input_tensor
+ * @param input_indices
+ * @return at::Tensor
+ */
 at::Tensor extract_tensor_from_grouped_indices(
   at::Tensor * input_tensor,
   at::Tensor * input_indices);
 
 
 /**
- * @brief checks and prints what device is available
+ * @brief  prints what device is available for use
  *
  */
-void test_if_cuda_avail();
+void check_avail_device();
 
 /**
  * @brief retruns a Tensor containing squared distance from each of point in source tensor to each point in target_point
@@ -101,7 +107,7 @@ std::pair<at::Tensor, at::Tensor> sample_and_group(
   at::Tensor * xyz, at::Tensor * points);
 
 /**
- * @brief
+ * @brief given a tensor which has pointcloud in it, fills point into a pointcloud ,
  *
  * @param input_tensor
  * @param cloud
