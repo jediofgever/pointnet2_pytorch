@@ -242,7 +242,6 @@ std::pair<at::Tensor, at::Tensor> sample_and_group(
   } else {
     new_points = grouped_xyz;
   }
-  std::cout << new_points.sizes();
   return std::make_pair(new_xyz, new_points);
 }
 
@@ -297,12 +296,20 @@ int main()
   test_if_cuda_avail();
 
   // Initialize some random
-  c10::IntArrayRef test_tensor_shape = {4, 1024, 3};
+  int kB = 16; // Batch
+  int kN = 2048; // Number of points in each batch
+  int kFPS_SAMPLES = 128; // FPS going to sample kFPS_SAMPLES points
+  int kC = 3; // number of channels
+  int kMAX_N_POINTS_IN_RADIUS = 8;
+  double kRADIUS = 0.1;
+
+
+  c10::IntArrayRef test_tensor_shape = {kB, kN, kC};
   torch::Device cuda_device = torch::kCUDA;
   at::Tensor test_tensor = at::rand(test_tensor_shape, cuda_device);
 
   // to test FPS(Furthest-point-sampleing algorithm) =============================
-  at::Tensor fps_sampled_tensor_indices = farthest_point_sample(&test_tensor, 32, false);
+  at::Tensor fps_sampled_tensor_indices = farthest_point_sample(&test_tensor, kFPS_SAMPLES, false);
   at::Tensor fps_sampled_tensor = extract_tensor_from_indices(
     &test_tensor,
     &fps_sampled_tensor_indices
@@ -316,14 +323,18 @@ int main()
   // std::cout << "distance_tensor:  \n" << distance_tensor << std::endl;
 
   // Test query_ball_point function ===============================================
-  at::Tensor group_idx = query_ball_point(0.1, 8, &test_tensor, &fps_sampled_tensor);
+  at::Tensor group_idx = query_ball_point(
+    kRADIUS, kMAX_N_POINTS_IN_RADIUS, &test_tensor,
+    &fps_sampled_tensor);
   //std::cout << "test_tensor: \n" << test_tensor.sizes() << std::endl;
   //std::cout << "fps_sampled_tensor: \n" << fps_sampled_tensor.sizes() << std::endl;
   //std::cout << "group_idx:  \n" << group_idx << std::endl;
   auto grouped_xyz = extract_tensor_from_grouped_indices(&test_tensor, &group_idx);
 
   // Test Sample and Group ==========================================================
-  auto new_xyz_and_points = sample_and_group(32, 0.1, 8, &test_tensor, &test_tensor);
+  auto new_xyz_and_points = sample_and_group(
+    kFPS_SAMPLES, kRADIUS, kMAX_N_POINTS_IN_RADIUS,
+    &test_tensor, &test_tensor);
 
   // Visualize results =============================================================
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr full_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
