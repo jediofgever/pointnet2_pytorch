@@ -24,12 +24,18 @@ add_executable(test_pointnet2_utils src/test_pointnet2_utils.cpp
                                     src/pointnet2_utils.cpp)
 target_link_libraries(test_pointnet2_utils ${PCL_LIBRARIES} ${TORCH_LIBRARIES})
 
-install(TARGETS test_pointnet2_utils
+add_executable(test_pointnet2_sa include/pointnet2_pytorch/pointnet2_core.cpp
+                                 src/pointnet2_utils.cpp)
+target_link_libraries(test_pointnet2_sa ${PCL_LIBRARIES} ${TORCH_LIBRARIES})
+
+
+
+install(TARGETS test_pointnet2_utils test_pointnet2_sa
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin)
 
-install(TARGETS test_pointnet2_utils 
+install(TARGETS test_pointnet2_utils test_pointnet2_sa
         RUNTIME DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY include/

@@ -31,10 +31,16 @@ struct PointNetSetAbstraction : torch::nn::Module
     group_all_ = group_all;
 
     for (int i = 0; i < mlp.size(); i++) {
-      mlp_convs_->push_back(
+      mlp_convs_.push_back(
         torch::nn::Conv2d((torch::nn::Conv2dOptions(last_channel_, mlp_.at(i), 1))));
-      mlp_bns_->push_back(torch::nn::BatchNorm2d(torch::nn::BatchNorm2dOptions(mlp_.at(i))));
+      mlp_bns_.push_back(torch::nn::BatchNorm2d(torch::nn::BatchNorm2dOptions(mlp_.at(i))));
+
+      std::cout << "filled conv; " << mlp_convs_[i] << std::endl;
+
+      std::cout << "filled batchN; " << mlp_bns_[i] << std::endl;
+
       last_channel_ = mlp_.at(i);
+
     }
   }
 
@@ -65,10 +71,28 @@ struct PointNetSetAbstraction : torch::nn::Module
     // new_points shape :  [B, C+D, nsample,npoint]
     at::Tensor new_points = samlpled_and_grouped.second.permute({0, 3, 2, 1});
 
-    for (int i = 0; i < mlp_convs_->size(); i++) {
+    std::cout << "Sampled and grouped points shape BEFORE conv and BN OPS" << new_points.sizes() <<
+      std::endl;
+
+    for (size_t i = 0; i < mlp_convs_.size(); ++i) {
+
+      auto crr_conv = mlp_convs_[i];
+      auto crr_bn = mlp_bns_[i];
+
+      crr_conv->to(new_points.device());
+      crr_bn->to(new_points.device());
+
+      std::cout << "Resulting conv " << crr_conv << std::endl;
+      std::cout << "Resulting batch " << crr_bn << std::endl;
+
+      new_points = torch::nn::functional::relu(crr_bn(crr_conv(new_points)));
+
     }
 
+    std::cout << "Sampled and grouped points shape AFTER conv and BN OPS" << new_points.sizes() <<
+      std::endl;
 
+    return xyz;
   }
 
   int64_t npoint_;
@@ -78,10 +102,25 @@ struct PointNetSetAbstraction : torch::nn::Module
   c10::IntArrayRef mlp_;
   bool group_all_;
 
-  torch::nn::ModuleList mlp_convs_;
-  torch::nn::ModuleList mlp_bns_;
+  std::vector<torch::nn::Conv2d> mlp_convs_;
+  std::vector<torch::nn::BatchNorm2d> mlp_bns_;
 
 };
 
-
 }  // namespace pointnet2_core
+
+
+int main(int argc, char const * argv[])
+{
+
+  auto cuda_available = torch::cuda::is_available();
+  torch::Device device(cuda_available ? torch::kCUDA : torch::kCPU);
+  pointnet2_core::PointNetSetAbstraction sa(1024, 0.1, 32,
+    3 + 3, {32, 32, 64}, false);
+
+  c10::IntArrayRef test_tensor_shape = {2, 3, 2000};
+  at::Tensor test_tensor = at::rand(test_tensor_shape, device);
+  sa.forward(test_tensor, test_tensor);
+
+  return 0;
+}
