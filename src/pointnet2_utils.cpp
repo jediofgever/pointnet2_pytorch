@@ -200,8 +200,8 @@ std::pair<at::Tensor, at::Tensor> sample_and_group(
 
   if (points != nullptr) {
     auto grouped_points = extract_tensor_from_grouped_indices(points, &idx);
-    //grouped_points = grouped_points.view({B, npoint, nsample, D});
-    //new_points = torch::cat({grouped_xyz, grouped_points}, -1);
+    grouped_points = grouped_points.view({B, npoint, nsample, D});
+    new_points = torch::cat({grouped_xyz, grouped_points}, -1);
   } else {
     new_points = grouped_xyz;
   }

@@ -20,8 +20,17 @@ namespace pointnet2_core
 class PointNetSetAbstraction : public torch::nn::Module
 {
 public:
+
 /**
  * @brief Construct a new Point Net Set Abstraction object
+ * 
+ *        Input:
+       		npoint: Number of point for FPS sampling
+       		radius: Radius for ball query
+       		nsample: Number of point for each ball query
+       		in_channel: the dimension of channel
+       		mlp: A list for mlp input-output channel, such as [64, 64, 128]
+       		group_all: bool type for group_all or not
  *
  * @param npoint
  * @param radius
