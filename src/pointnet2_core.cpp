@@ -81,7 +81,7 @@ at::Tensor PointNetFeaturePropagation::forward(
   at::Tensor * xyz1, at::Tensor * xyz2,
   at::Tensor * points1, at::Tensor * points2)
 {
-  std::cerr << __PRETTY_FUNCTION__ << "Not implemnted yet" << std::endl;
+  std::cerr << __PRETTY_FUNCTION__ << " Not implemnted yet " << std::endl;
   return *xyz1;
 }
 }  // namespace pointnet2_core
