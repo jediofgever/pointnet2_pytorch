@@ -65,7 +65,9 @@
         "typeindex": "cpp",
         "typeinfo": "cpp",
         "variant": "cpp",
-        "bit": "cpp"
+        "bit": "cpp",
+        "__config": "cpp",
+        "__nullptr": "cpp"
     },
     "ros.distro": "foxy"
 }

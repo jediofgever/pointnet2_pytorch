@@ -38,6 +38,7 @@ int main()
     &test_tensor,
     kFPS_SAMPLES,
     false);
+  
   at::Tensor fps_sampled_tensor = pointnet2_utils::extract_tensor_from_indices(
     &test_tensor,
     &fps_sampled_tensor_indices
@@ -47,17 +48,17 @@ int main()
   //std::cout << "fps_sampled_tensor:  \n" << fps_sampled_tensor << std::endl;
 
   // Test Square distance function ================================================
-  at::Tensor distance_tensor = pointnet2_utils::square_distance(&fps_sampled_tensor, &test_tensor);
+  //at::Tensor distance_tensor = pointnet2_utils::square_distance(&fps_sampled_tensor, &test_tensor);
   // std::cout << "distance_tensor:  \n" << distance_tensor << std::endl;
 
   // Test query_ball_point function ===============================================
-  at::Tensor group_idx = pointnet2_utils::query_ball_point(
-    kRADIUS, kMAX_N_POINTS_IN_RADIUS, &test_tensor,
-    &fps_sampled_tensor);
+  // at::Tensor group_idx = pointnet2_utils::query_ball_point(
+  //  kRADIUS, kMAX_N_POINTS_IN_RADIUS, &test_tensor,
+  //  &fps_sampled_tensor);
   //std::cout << "test_tensor: \n" << test_tensor.sizes() << std::endl;
   //std::cout << "fps_sampled_tensor: \n" << fps_sampled_tensor.sizes() << std::endl;
   //std::cout << "group_idx:  \n" << group_idx << std::endl;
-  auto grouped_xyz = pointnet2_utils::extract_tensor_from_grouped_indices(&test_tensor, &group_idx);
+  //auto grouped_xyz = pointnet2_utils::extract_tensor_from_grouped_indices(&test_tensor, &group_idx);
 
   // Test Sample and Group ==========================================================
   auto new_xyz_and_points = pointnet2_utils::sample_and_group(

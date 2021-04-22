@@ -68,7 +68,8 @@ at::Tensor extract_tensor_from_indices(at::Tensor * input_tensor, at::Tensor * i
   c10::IntArrayRef input_shape = input_indices->sizes();
   at::Tensor extracted_tensor = at::zeros(
     {input_shape[0],
-      input_shape[1], 3},
+      input_shape[1],
+      3},
     input_indices->device());
 
   for (int i = 0; i < input_shape[0]; i++) {
@@ -88,19 +89,22 @@ at::Tensor extract_tensor_from_grouped_indices(
   at::Tensor * input_indices)
 {
   // This indices are usally
-  c10::IntArrayRef input_shape = input_indices->sizes();
+  c10::IntArrayRef input_tensor_shape = input_tensor->sizes();
+  c10::IntArrayRef input_indices_shape = input_indices->sizes();
+
   at::Tensor extracted_tensor = at::zeros(
-    {input_shape[0],
-      input_shape[1] * input_shape[2], 3},
+    {input_indices_shape[0],
+      input_indices_shape[1] * input_indices_shape[2],
+      input_tensor_shape.back()},
     input_indices->device());
 
-  for (int i = 0; i < input_shape[0]; i++) {
-    for (int j = 0; j < input_shape[1]; j++) {
-      for (int k = 0; k < input_shape[2]; k++) {
+  for (int i = 0; i < input_indices_shape[0]; i++) {
+    for (int j = 0; j < input_indices_shape[1]; j++) {
+      for (int k = 0; k < input_indices_shape[2]; k++) {
         pcl::PointXYZRGB crr_point;
         int index = input_indices->index({i, j, k}).item<int>();
         at::Tensor sampled_point = input_tensor->index({i, index});
-        extracted_tensor.index_put_({i, j * input_shape[2] + k}, sampled_point);
+        extracted_tensor.index_put_({i, j * input_indices_shape[2] + k}, sampled_point);
       }
     }
   }
@@ -196,11 +200,12 @@ std::pair<at::Tensor, at::Tensor> sample_and_group(
 
   if (points != nullptr) {
     auto grouped_points = extract_tensor_from_grouped_indices(points, &idx);
-    grouped_points = grouped_points.view({B, npoint, nsample, D});
-    new_points = torch::cat({grouped_xyz, grouped_points}, -1);
+    //grouped_points = grouped_points.view({B, npoint, nsample, D});
+    //new_points = torch::cat({grouped_xyz, grouped_points}, -1);
   } else {
     new_points = grouped_xyz;
   }
+
   return std::make_pair(new_xyz, new_points);
 }
 
