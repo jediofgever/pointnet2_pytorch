@@ -24,16 +24,14 @@ PointNetSetAbstraction::PointNetSetAbstraction(
   radius_ = radius;
   nsample_ = nsample;
   last_channel_ = in_channel;
-  mlp_ = mlp;
   group_all_ = group_all;
   for (int i = 0; i < mlp.size(); i++) {
     mlp_convs_.push_back(
-      torch::nn::Conv2d((torch::nn::Conv2dOptions(last_channel_, mlp_.at(i), 1))));
-    mlp_bns_.push_back(torch::nn::BatchNorm2d(torch::nn::BatchNorm2dOptions(mlp_.at(i))));
-    last_channel_ = mlp_.at(i);
+      torch::nn::Conv2d((torch::nn::Conv2dOptions(last_channel_, mlp.at(i), 1))));
+    mlp_bns_.push_back(torch::nn::BatchNorm2d(torch::nn::BatchNorm2dOptions(mlp.at(i))));
+    last_channel_ = mlp.at(i);
   }
 }
-
 
 std::pair<at::Tensor, at::Tensor> PointNetSetAbstraction::forward(
   at::Tensor * xyz,
@@ -64,5 +62,26 @@ std::pair<at::Tensor, at::Tensor> PointNetSetAbstraction::forward(
   new_xyz = new_xyz.permute({0, 2, 1});
 
   return std::make_pair(new_xyz, new_points);
+}
+
+
+PointNetFeaturePropagation::PointNetFeaturePropagation(
+  int64_t in_channel, c10::IntArrayRef mlp)
+{
+  int64_t last_channel = in_channel;
+  for (int i = 0; i < mlp.size(); i++) {
+    mlp_convs_.push_back(
+      torch::nn::Conv1d((torch::nn::Conv1dOptions(last_channel, mlp.at(i), 1))));
+    mlp_bns_.push_back(torch::nn::BatchNorm1d(torch::nn::BatchNorm1dOptions(mlp.at(i))));
+    last_channel = mlp.at(i);
+  }
+}
+
+at::Tensor PointNetFeaturePropagation::forward(
+  at::Tensor * xyz1, at::Tensor * xyz2,
+  at::Tensor * points1, at::Tensor * points2)
+{
+  std::cerr << __PRETTY_FUNCTION__ << "Not implemnted yet" << std::endl;
+  return *xyz1;
 }
 }  // namespace pointnet2_core

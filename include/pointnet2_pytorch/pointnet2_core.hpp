@@ -17,20 +17,23 @@
 namespace pointnet2_core
 {
 
+/**
+ * @brief TODO
+ *
+ */
 class PointNetSetAbstraction : public torch::nn::Module
 {
 public:
-
 /**
  * @brief Construct a new Point Net Set Abstraction object
- * 
+ *
  *        Input:
-       		npoint: Number of point for FPS sampling
-       		radius: Radius for ball query
-       		nsample: Number of point for each ball query
-       		in_channel: the dimension of channel
-       		mlp: A list for mlp input-output channel, such as [64, 64, 128]
-       		group_all: bool type for group_all or not
+                npoint: Number of point for FPS sampling
+                radius: Radius for ball query
+                nsample: Number of point for each ball query
+                in_channel: the dimension of channel
+                mlp: A list for mlp input-output channel, such as [64, 64, 128]
+                group_all: bool type for group_all or not
  *
  * @param npoint
  * @param radius
@@ -64,10 +67,52 @@ protected:
   float radius_;
   int64_t nsample_;
   int64_t last_channel_;
-  c10::IntArrayRef mlp_;
   bool group_all_;
   std::vector<torch::nn::Conv2d> mlp_convs_;
   std::vector<torch::nn::BatchNorm2d> mlp_bns_;
 };
+
+/**
+ * @brief TODO
+ *
+ */
+class PointNetFeaturePropagation : public torch::nn::Module
+{
+public:
+  /**
+   * @brief Construct a new Point Net Feature Propagation object
+   *
+   * @param in_channel
+   * @param mlp
+   */
+  PointNetFeaturePropagation(
+    int64_t in_channel, c10::IntArrayRef mlp);
+
+
+  /**
+   * @brief
+   *        Input:
+            xyz1: input points position data, [B, C, N]
+            xyz2: sampled input points position data, [B, C, S]
+            points1: input points data, [B, D, N]
+            points2: input points data, [B, D, S]
+        Return:
+            new_points: upsampled points data, [B, D', N]
+   *
+   * @param xyz1
+   * @param xyz2
+   * @param points1
+   * @param points2
+   * @return at::Tensor
+   */
+  at::Tensor forward(
+    at::Tensor * xyz1, at::Tensor * xyz2,
+    at::Tensor * points1, at::Tensor * points2);
+
+protected:
+  std::vector<torch::nn::Conv1d> mlp_convs_;
+  std::vector<torch::nn::BatchNorm1d> mlp_bns_;
+};
+
 
 }  // namespace pointnet2_core
