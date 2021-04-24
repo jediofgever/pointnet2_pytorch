@@ -24,24 +24,69 @@ int main(int argc, char const * argv[])
 
   at::Tensor test_tensor = at::rand(test_tensor_shape, device);
 
-  pointnet2_core::PointNetSetAbstraction sa1(1024, 0.025, 32,
-    3, {32, 32, 64}, false);
-  pointnet2_core::PointNetSetAbstraction sa2(256, 0.05, 32,
+  pointnet2_core::PointNetSetAbstraction sa1(2048, 0.1, 32,
+    3 + 3, {32, 32, 64}, false);
+  pointnet2_core::PointNetSetAbstraction sa2(512, 0.2, 32,
     64 + 3, {64, 64, 128}, false);
-  pointnet2_core::PointNetSetAbstraction sa3(64, 0.1, 32,
+  pointnet2_core::PointNetSetAbstraction sa3(128, 0.4, 32,
     128 + 3, {128, 128, 256}, false);
-  pointnet2_core::PointNetSetAbstraction sa4(16, 0.2, 32,
+  pointnet2_core::PointNetSetAbstraction sa4(64, 1.6, 32,
     256 + 3, {256, 256, 512}, false);
 
+  auto tensor_from_cloud = pointnet2_utils::load_pcl_as_torch_tensor(
+    "/home/ros2-foxy/uneven_ground_dataset/train_2.pcd", 2400, device);
 
-  auto l1_output = sa1.forward(&test_tensor, nullptr);
+  tensor_from_cloud = tensor_from_cloud.permute({0, 2, 1});
+
+  auto sliced_tensor = tensor_from_cloud.index(
+    {torch::indexing::Slice(torch::indexing::None, 8)});
+
+  auto l0_points = sliced_tensor;
+  auto l0_xyz = sliced_tensor.index(
+    {torch::indexing::Slice(),
+      torch::indexing::Slice(torch::indexing::None, 3),
+      torch::indexing::Slice()});
+
+  auto l1_output = sa1.forward(&l0_xyz, &l0_points);
   auto l2_output = sa2.forward(&l1_output.first, &l1_output.second);
   auto l3_output = sa3.forward(&l2_output.first, &l2_output.second);
-  //auto l4_output = sa4.forward(&l3_output.first, &l3_output.second);
+  auto l4_output = sa4.forward(&l3_output.first, &l3_output.second);
+
+  // Visualize results =============================================================
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr l0(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr l1(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr l2(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr l3(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr l4(new pcl::PointCloud<pcl::PointXYZRGB>);
+
+  auto l0t = l0_xyz.permute({0, 2, 1});
+  auto l1t = l1_output.first.permute({0, 2, 1});
+  auto l2t = l2_output.first.permute({0, 2, 1});
+  auto l3t = l3_output.first.permute({0, 2, 1});
+  auto l4t = l4_output.first.permute({0, 2, 1});
+
+  std::cout << l0t.sizes() << std::endl;
+  std::cout << l1t.sizes() << std::endl;
+  std::cout << l2t.sizes() << std::endl;
+  std::cout << l3t.sizes() << std::endl;
+  std::cout << l4t.sizes() << std::endl;
+
+  pointnet2_utils::torch_tensor_to_pcl_cloud(&l0t, l0, std::vector<double>({0.0, 255.0, 0}));
+  pointnet2_utils::torch_tensor_to_pcl_cloud(&l1t, l1, std::vector<double>({255.0, 0, 255.0}));
+  pointnet2_utils::torch_tensor_to_pcl_cloud(&l2t, l2, std::vector<double>({255.0, 255, 0}));
+  pointnet2_utils::torch_tensor_to_pcl_cloud(&l3t, l3, std::vector<double>({100.0, 0, 0}));
+  pointnet2_utils::torch_tensor_to_pcl_cloud(&l4t, l4, std::vector<double>({50.0, 100, 0}));
+
+  auto merged_cloud = *l4 + *l3 + *l2 + *l1 + *l0;
+  pcl::io::savePCDFile("../data/sa_pass.pcd", merged_cloud, false);
 
   pointnet2_core::PointNetFeaturePropagation fp4(768, {256, 256});
+  pointnet2_core::PointNetFeaturePropagation fp3(384, {256, 256});
 
-  auto ss = fp4.forward(&test_tensor, &test_tensor, &test_tensor, &test_tensor);
+  /*l3_output.second = fp4.forward(
+    &l3_output.first, &l4_output.first, &l3_output.second, &l4_output.second);*/
+
+  std::cout << "Pointnet2 core test Successful." << std::endl;
 
   return EXIT_SUCCESS;
 }

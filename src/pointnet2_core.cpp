@@ -37,14 +37,16 @@ std::pair<at::Tensor, at::Tensor> PointNetSetAbstraction::forward(
   at::Tensor * xyz,
   at::Tensor * points)
 {
-  *xyz = xyz->permute({0, 2, 1});
+  auto permuted_xyz = xyz->permute({0, 2, 1});
+  at::Tensor permuted_points;
+
   if (points) {
-    *points = points->permute({0, 2, 1});
+    permuted_points = points->permute({0, 2, 1});
   }
 
   // new_xyz, new_points
   std::pair<at::Tensor, at::Tensor> sampled_and_grouped =
-    pointnet2_utils::sample_and_group(npoint_, radius_, nsample_, xyz, points);
+    pointnet2_utils::sample_and_group(npoint_, radius_, nsample_, &permuted_xyz, &permuted_points);
 
   at::Tensor new_xyz = sampled_and_grouped.first;
   // new_points shape :  [B, C+D, nsample,npoint]
@@ -81,7 +83,89 @@ at::Tensor PointNetFeaturePropagation::forward(
   at::Tensor * xyz1, at::Tensor * xyz2,
   at::Tensor * points1, at::Tensor * points2)
 {
-  std::cerr << __PRETTY_FUNCTION__ << " Not implemnted yet " << std::endl;
-  return *xyz1;
+
+  std::cout << "xyz1  " << xyz1->sizes() << std::endl;
+  std::cout << "xyz2  " << xyz2->sizes() << std::endl;
+  std::cout << "points1  .. " << points1->sizes() << std::endl;
+  std::cout << "points2  .. " << points2->sizes() << std::endl;
+
+  *xyz1 = xyz1->permute({0, 2, 1});
+  *xyz2 = xyz2->permute({0, 2, 1});
+  *points2 = points2->permute({0, 2, 1});
+
+  c10::IntArrayRef xyz1_shape = xyz1->sizes();
+  c10::IntArrayRef xyz2_shape = xyz2->sizes();
+
+  int B, N, C, S;
+  B = xyz1_shape[0];
+  N = xyz1_shape[1];
+  C = xyz1_shape[2];
+  S = xyz2_shape[1];
+
+  at::Tensor interpolated_points;
+
+  if (S == 1) {
+    interpolated_points = points2->repeat({1, N, 1});
+  } else {
+
+    auto sqrdists = pointnet2_utils::square_distance(xyz1, xyz2);
+
+    // this is a tuple , first element is distance itself, second idx
+    auto dists_idx_tuple = sqrdists.sort(-1);
+
+    auto dists = std::get<0>(dists_idx_tuple).index(
+      {torch::indexing::Slice(),
+        torch::indexing::Slice(),
+        torch::indexing::Slice(torch::indexing::None, 3)});
+
+    auto idx = std::get<1>(dists_idx_tuple).index(
+      {torch::indexing::Slice(),
+        torch::indexing::Slice(),
+        torch::indexing::Slice(torch::indexing::None, 3)});
+
+    // index smaller than  1e-10, set to  1e-10 to avoid division by zer0
+    auto dist_recip = 1.0 / (dists + 1e-8);
+
+    auto norm = torch::sum(dist_recip, 2, true);
+
+    auto weight = dist_recip / norm;
+
+    auto extracted_tensor = pointnet2_utils::extract_tensor_from_grouped_indices(points2, &idx);
+
+    std::cout << "extracted_tensor.. " << extracted_tensor.sizes() << std::endl;
+    std::cout << "weight  " << weight.sizes() << std::endl;
+    std::cout << "idx  " << idx.sizes() << std::endl;
+
+    std::cout << "weight.view({B, N, 3, 1})  " << weight.view({B, N, C, 1}).sizes() << std::endl;
+
+    auto ttbs = extracted_tensor * weight.view({B, N, C, 1});
+
+    std::cout << "ttbs.. " << ttbs.sizes() << std::endl;
+
+    interpolated_points =
+      torch::sum(extracted_tensor, 2);
+
+    std::cout << "interpolated_points" << interpolated_points.sizes() << std::endl;
+
+  }
+  at::Tensor new_points;
+
+  if (points1 != nullptr) {
+    *points1 = points1->permute({0, 2, 1});
+    new_points = torch::cat({*points1, interpolated_points}, -1);
+  } else {
+    new_points = interpolated_points;
+  }
+
+  new_points = new_points.permute({0, 2, 1});
+  for (size_t i = 0; i < mlp_convs_.size(); ++i) {
+    auto crr_conv = mlp_convs_[i];
+    auto crr_bn = mlp_bns_[i];
+    crr_conv->to(new_points.device());
+    crr_bn->to(new_points.device());
+    new_points = torch::nn::functional::relu(crr_bn(crr_conv(new_points)));
+  }
+
+  return new_points;
 }
 }  // namespace pointnet2_core

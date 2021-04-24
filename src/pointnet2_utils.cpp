@@ -192,6 +192,7 @@ std::pair<at::Tensor, at::Tensor> sample_and_group(
   auto idx = query_ball_point(radius, nsample, xyz, &new_xyz);
   auto grouped_xyz = extract_tensor_from_grouped_indices(xyz, &idx);
 
+
   grouped_xyz = grouped_xyz.view({B, npoint, nsample, C});
 
   at::Tensor new_points = at::zeros(
@@ -245,5 +246,34 @@ void torch_tensor_to_pcl_cloud(
   }
   cloud->width = 1;
   cloud->height = cloud->points.size();
+}
+
+at::Tensor load_pcl_as_torch_tensor(
+  const std::string cloud_filename, int N, torch::Device device)
+{
+  pcl::PointCloud<pcl::PointXYZRGB> cloud;
+  if (!pcl::io::loadPCDFile(cloud_filename, cloud)) {
+    std::cout << "Gonna load a cloud with " << cloud.points.size() << " points" << std::endl;
+  } else {
+    std::cerr << "Could not read PCD file: " << cloud_filename << std::endl;
+  }
+  // Convert cloud to a tensor with shape of [B,N,C]
+  // Determine batches
+  int B = cloud.points.size() % N;
+  at::Tensor cloud_as_tensor = torch::zeros({B, N, 3}, device);
+  for (int i = 0; i < B; i++) {
+    for (int j = 0; j < N; j++) {
+      if (i * N + j < cloud.points.size()) {
+        auto crr_point = cloud.points[i * N + j];
+        auto point_tensor = at::zeros({1, 3}, device);
+        point_tensor.index_put_({0, 0}, crr_point.x);
+        point_tensor.index_put_({0, 1}, crr_point.y);
+        point_tensor.index_put_({0, 2}, crr_point.z);
+        cloud_as_tensor.index_put_(
+          {i, j}, point_tensor);
+      }
+    }
+  }
+  return cloud_as_tensor;
 }
 }  // namespace pointnet2_utils

@@ -117,4 +117,15 @@ void torch_tensor_to_pcl_cloud(
   const at::Tensor * input_tensor,
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, std::vector<double> point_color);
 
+/**
+ * @brief
+ *
+ * @param cloud_filename
+ * @param N
+ * @param device
+ * @return at::Tensor
+ */
+at::Tensor load_pcl_as_torch_tensor(
+  const std::string cloud_filename, int N, torch::Device device);
+
 }  // namespace pointnet2_utils
