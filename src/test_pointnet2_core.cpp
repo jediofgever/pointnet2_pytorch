@@ -94,7 +94,7 @@ int main(int argc, char const * argv[])
   pointnet2_core::PointNetFeaturePropagation fp4(768, {256, 256});
   pointnet2_core::PointNetFeaturePropagation fp3(384, {256, 256});
   pointnet2_core::PointNetFeaturePropagation fp2(320, {256, 128});
-  pointnet2_core::PointNetFeaturePropagation fp1(128, {128, 128, 256});
+  pointnet2_core::PointNetFeaturePropagation fp1(128, {128, 128, 128});
 
   sa3_output.second = fp4.forward(
     &sa3_output.first, &sa4_output.first, &sa3_output.second, &sa4_output.second);
@@ -102,9 +102,25 @@ int main(int argc, char const * argv[])
     &sa2_output.first, &sa3_output.first, &sa2_output.second, &sa3_output.second);
   sa1_output.second = fp2.forward(
     &sa1_output.first, &sa2_output.first, &sa1_output.second, &sa2_output.second);
-  auto final = fp1.forward(
+  auto final_layer = fp1.forward(
     &input_xyz, &sa1_output.first, nullptr, &sa1_output.second);
 
+  auto conv1 = torch::nn::Conv1d(torch::nn::Conv1dOptions(128, 128, 1));
+  auto bn1 = torch::nn::BatchNorm1d(torch::nn::BatchNorm1dOptions(128));
+  auto drop1 = torch::nn::Dropout(torch::nn::DropoutOptions(0.5));
+  auto conv2 = torch::nn::Conv1d(torch::nn::Conv1dOptions(128, 2, 1));
+
+  conv1->to(tensor_from_cloud.device());
+  bn1->to(tensor_from_cloud.device());
+  drop1->to(tensor_from_cloud.device());
+  conv2->to(tensor_from_cloud.device());
+
+  auto x = torch::nn::functional::relu(bn1(conv1(final_layer)));
+  x = conv2(x);
+  x = torch::nn::functional::log_softmax(x, 1);
+  x = x.permute({0, 2, 1});
+
+  std::cout << "Test output size" << x.sizes() << std::endl;
   std::cout << "Pointnet2 core test Successful." << std::endl;
 
   return EXIT_SUCCESS;
