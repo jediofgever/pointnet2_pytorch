@@ -51,6 +51,9 @@ at::Tensor extract_tensor_from_grouped_indices(
   at::Tensor * input_tensor,
   at::Tensor * input_indices);
 
+at::Tensor extract_points_tensor_from_indices(
+  at::Tensor * input_tensor,
+  at::Tensor * input_indices);
 
 /**
  * @brief  prints what device is available for use

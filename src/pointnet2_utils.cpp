@@ -111,6 +111,38 @@ at::Tensor extract_tensor_from_grouped_indices(
   return extracted_tensor;
 }
 
+at::Tensor extract_points_tensor_from_indices(
+  at::Tensor * input_tensor,
+  at::Tensor * input_indices)
+{
+  // This indices are usally
+  c10::IntArrayRef input_tensor_shape = input_tensor->sizes();
+  c10::IntArrayRef input_indices_shape = input_indices->sizes();
+
+  at::Tensor extracted_tensor = at::zeros(
+    {input_indices_shape[0],
+      input_indices_shape[1], 
+      input_indices_shape[2],
+      input_tensor_shape.back()},
+    input_indices->device());
+
+  for (int i = 0; i < input_indices_shape[0]; i++) {
+    for (int j = 0; j < input_indices_shape[1]; j++) {
+      for (int k = 0; k < input_indices_shape[2]; k++) {
+
+        pcl::PointXYZRGB crr_point;
+        int index = input_indices->index({i, j, k}).item<int>();
+
+        at::Tensor sampled_point = input_tensor->index({i, index});
+
+        extracted_tensor.index_put_({i, j, k}, sampled_point);
+
+      }
+    }
+  }
+  return extracted_tensor;
+}
+
 void check_avail_device()
 {
   torch::Device device = torch::kCPU;
