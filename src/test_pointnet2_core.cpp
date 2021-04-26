@@ -20,6 +20,8 @@ int main(int argc, char const * argv[])
   auto cuda_available = torch::cuda::is_available();
   torch::Device device(cuda_available ? torch::kCUDA : torch::kCPU);
 
+
+  // Set abstraction layers
   pointnet2_core::PointNetSetAbstraction sa1(2048, 0.1, 32,
     3 + 3, {32, 32, 64}, false);
   pointnet2_core::PointNetSetAbstraction sa2(512, 0.2, 32,
@@ -29,81 +31,79 @@ int main(int argc, char const * argv[])
   pointnet2_core::PointNetSetAbstraction sa4(32, 0.8, 32,
     256 + 3, {256, 256, 512}, false);
 
+  // Pass a real point cloud to pass through SA and FP stacks of layers
   auto tensor_from_cloud = pointnet2_utils::load_pcl_as_torch_tensor(
     "/home/ros2-foxy/Downloads/test49.pcd", 1600, device);
 
+  // Permute the channels so that we have  : [B,C,N]
   tensor_from_cloud = tensor_from_cloud.permute({0, 2, 1});
 
-  auto sliced_tensor = tensor_from_cloud.index(
-    {torch::indexing::Slice(torch::indexing::None, 4)});
+  namespace toi = torch::indexing;
 
-  auto l0_points = sliced_tensor;
-  auto l0_xyz = sliced_tensor.index(
-    {torch::indexing::Slice(),
-      torch::indexing::Slice(torch::indexing::None, 3),
-      torch::indexing::Slice()});
+  // Since the tensor might to large, might nt fit to memory, so slie the first 4 Batches
+  at::Tensor sliced_tensor = tensor_from_cloud.index(
+    {toi::Slice(toi::None, 4)});
 
-  auto l1_output = sa1.forward(&l0_xyz, &l0_points);
-  auto l2_output = sa2.forward(&l1_output.first, &l1_output.second);
-  auto l3_output = sa3.forward(&l2_output.first, &l2_output.second);
-  auto l4_output = sa4.forward(&l3_output.first, &l3_output.second);
+  at::Tensor input_points = sliced_tensor;
+  at::Tensor input_xyz = sliced_tensor.index(
+    {toi::Slice(),
+      toi::Slice(toi::None, 3),
+      toi::Slice()});
+
+  std::pair<at::Tensor, at::Tensor> sa1_output = sa1.forward(&input_xyz, &input_points);
+  std::pair<at::Tensor, at::Tensor> sa2_output = sa2.forward(&sa1_output.first, &sa1_output.second);
+  std::pair<at::Tensor, at::Tensor> sa3_output = sa3.forward(&sa2_output.first, &sa2_output.second);
+  std::pair<at::Tensor, at::Tensor> sa4_output = sa4.forward(&sa3_output.first, &sa3_output.second);
 
   // Visualize results =============================================================
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr l0(new pcl::PointCloud<pcl::PointXYZRGB>);
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr l1(new pcl::PointCloud<pcl::PointXYZRGB>);
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr l2(new pcl::PointCloud<pcl::PointXYZRGB>);
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr l3(new pcl::PointCloud<pcl::PointXYZRGB>);
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr l4(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr original_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr sa1_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr sa2_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr sa3_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr sa4_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
 
-  auto l0t = l0_xyz.permute({0, 2, 1});
-  auto l1t = l1_output.first.permute({0, 2, 1});
-  auto l2t = l2_output.first.permute({0, 2, 1});
-  auto l3t = l3_output.first.permute({0, 2, 1});
-  auto l4t = l4_output.first.permute({0, 2, 1});
+  at::Tensor input_xyz_tensor = input_xyz.permute({0, 2, 1});
+  at::Tensor sa1_xyz = sa1_output.first.permute({0, 2, 1});
+  at::Tensor sa2_xyz = sa2_output.first.permute({0, 2, 1});
+  at::Tensor sa3_xyz = sa3_output.first.permute({0, 2, 1});
+  at::Tensor sa4_xyz = sa4_output.first.permute({0, 2, 1});
 
-  auto ls0t = l0_points.permute({0, 2, 1});
-  auto ls1t = l1_output.second.permute({0, 2, 1});
-  auto ls2t = l2_output.second.permute({0, 2, 1});
-  auto ls3t = l3_output.second.permute({0, 2, 1});
-  auto ls4t = l4_output.second.permute({0, 2, 1});
+  std::cout << "input_xyz_tensor.sizes() " << input_xyz_tensor.sizes() << std::endl;
+  std::cout << "sa1_xyz.sizes() " << sa1_xyz.sizes() << std::endl;
+  std::cout << "sa2_xyz.sizes() " << sa2_xyz.sizes() << std::endl;
+  std::cout << "sa3_xyz.sizes() " << sa3_xyz.sizes() << std::endl;
+  std::cout << "sa4_xyz.sizes() " << sa4_xyz.sizes() << std::endl;
 
-  std::cout << l0t.sizes() << std::endl;
-  std::cout << l1t.sizes() << std::endl;
-  std::cout << l2t.sizes() << std::endl;
-  std::cout << l3t.sizes() << std::endl;
-  std::cout << l4t.sizes() << std::endl;
-  std::cout << ls0t.sizes() << std::endl;
-  std::cout << ls1t.sizes() << std::endl;
-  std::cout << ls2t.sizes() << std::endl;
-  std::cout << ls3t.sizes() << std::endl;
-  std::cout << ls4t.sizes() << std::endl;
+  pointnet2_utils::torch_tensor_to_pcl_cloud(
+    &input_xyz_tensor, original_cloud, std::vector<double>({255.0, 0.0, 0}));
+  pointnet2_utils::torch_tensor_to_pcl_cloud(
+    &sa1_xyz, sa1_cloud, std::vector<double>({0.0, 255.0, 0.0}));
+  pointnet2_utils::torch_tensor_to_pcl_cloud(
+    &sa2_xyz, sa2_cloud, std::vector<double>({0.0, 0, 255.0}));
+  pointnet2_utils::torch_tensor_to_pcl_cloud(
+    &sa3_xyz, sa3_cloud, std::vector<double>({100.0, 100, 0}));
+  pointnet2_utils::torch_tensor_to_pcl_cloud(
+    &sa4_xyz, sa4_cloud, std::vector<double>({0.0, 255, 255}));
 
-  pointnet2_utils::torch_tensor_to_pcl_cloud(&l0t, l0, std::vector<double>({0.0, 255.0, 0}));
-  pointnet2_utils::torch_tensor_to_pcl_cloud(&l1t, l1, std::vector<double>({255.0, 0, 255.0}));
-  pointnet2_utils::torch_tensor_to_pcl_cloud(&l2t, l2, std::vector<double>({255.0, 255, 0}));
-  pointnet2_utils::torch_tensor_to_pcl_cloud(&l3t, l3, std::vector<double>({100.0, 0, 0}));
-  pointnet2_utils::torch_tensor_to_pcl_cloud(&l4t, l4, std::vector<double>({50.0, 100, 0}));
-
-  auto merged_cloud = *l4 + *l3 + *l2 + *l1 + *l0;
+  auto merged_cloud = *sa4_cloud + *sa3_cloud + *sa2_cloud + *sa1_cloud + *original_cloud;
   pcl::io::savePCDFile("../data/sa_pass.pcd", merged_cloud, false);
+
+  std::cout << "Saved a cloud pass from set abstraction layers to ../data/sa_pass.pcd " <<
+    std::endl;
 
   pointnet2_core::PointNetFeaturePropagation fp4(768, {256, 256});
   pointnet2_core::PointNetFeaturePropagation fp3(384, {256, 256});
   pointnet2_core::PointNetFeaturePropagation fp2(320, {256, 128});
   pointnet2_core::PointNetFeaturePropagation fp1(128, {128, 128, 256});
 
-
-  l3_output.second = fp4.forward(
-    &l3_output.first, &l4_output.first, &l3_output.second, &l4_output.second);
-
-  l2_output.second = fp3.forward(
-    &l2_output.first, &l3_output.first, &l2_output.second, &l3_output.second);
-
-  l1_output.second = fp2.forward(
-    &l1_output.first, &l2_output.first, &l1_output.second, &l2_output.second);
-
+  sa3_output.second = fp4.forward(
+    &sa3_output.first, &sa4_output.first, &sa3_output.second, &sa4_output.second);
+  sa2_output.second = fp3.forward(
+    &sa2_output.first, &sa3_output.first, &sa2_output.second, &sa3_output.second);
+  sa1_output.second = fp2.forward(
+    &sa1_output.first, &sa2_output.first, &sa1_output.second, &sa2_output.second);
   auto final = fp1.forward(
-    &l0_xyz, &l1_output.first, nullptr, &l1_output.second);
+    &input_xyz, &sa1_output.first, nullptr, &sa1_output.second);
 
   std::cout << "Pointnet2 core test Successful." << std::endl;
 
