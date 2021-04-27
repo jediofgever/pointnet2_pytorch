@@ -38,6 +38,9 @@ UnevenGroudDataset::UnevenGroudDataset(std::string root_dir, at::Device device)
       torch::cat({labels_, xyz_labels_pair.second}, 0);
     }
   }
+  std::cout << " xyz_.size() " << xyz_.sizes() << std::endl;
+  std::cout << " labels_.size() " << labels_.sizes() << std::endl;
+
 }
 
 UnevenGroudDataset::~UnevenGroudDataset()
@@ -88,6 +91,6 @@ torch::data::Example<at::Tensor, at::Tensor> UnevenGroudDataset::get(size_t inde
 
 torch::optional<size_t> UnevenGroudDataset::size() const
 {
-  return filename_vector_.size();
+  return xyz_.sizes().front();
 }
 }  // namespace uneven_ground_dataset

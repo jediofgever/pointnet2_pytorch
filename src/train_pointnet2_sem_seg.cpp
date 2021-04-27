@@ -21,7 +21,8 @@ int main()
   std::string root_dir = "/home/ros2-foxy/uneven_ground_dataset";
   torch::Device device = torch::kCPU;
 
-  auto dataset = uneven_ground_dataset::UnevenGroudDataset(root_dir, device);
+  auto dataset = uneven_ground_dataset::UnevenGroudDataset(root_dir, device).map(
+    torch::data::transforms::Stack<>());
 
   int batch_size = 4;
   auto dataset_loader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(
@@ -29,10 +30,11 @@ int main()
 
   // In a for loop you can now use your data.
   for (auto & batch : *dataset_loader) {
-    auto data = batch.data()->data;
-    auto labels = batch.data()->target;
-    std::cout << "data" << data.sizes() << std::endl;
-    std::cout << "labels" << labels.sizes() << std::endl;
+    auto data = batch.data;
+    auto label = batch.target;
+
+    std::cout << " data " << data.sizes() << std::endl;
+    std::cout << " label " << label.sizes() << std::endl;
   }
 
   std::cout << "Pointnet2 sem segmentation training Successful." << std::endl;
