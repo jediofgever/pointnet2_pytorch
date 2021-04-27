@@ -101,4 +101,4 @@ std::pair<at::Tensor, at::Tensor> PointNet2SemSeg::forward(at::Tensor * xyz)
 }
 
 
-}  // namespace pointnet2_core
+}  // namespace pointnet2_sem_seg

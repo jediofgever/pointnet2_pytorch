@@ -67,7 +67,8 @@
         "variant": "cpp",
         "bit": "cpp",
         "__config": "cpp",
-        "__nullptr": "cpp"
+        "__nullptr": "cpp",
+        "filesystem": "cpp"
     },
     "ros.distro": "foxy"
 }

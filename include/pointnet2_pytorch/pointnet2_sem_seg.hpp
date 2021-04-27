@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <pointnet2_pytorch/pointnet2_utils.hpp>
 #include <pointnet2_pytorch/pointnet2_core.hpp>
 
 namespace pointnet2_sem_seg
