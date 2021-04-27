@@ -30,6 +30,9 @@ add_executable(test_pointnet2_core_modules src/test_pointnet2_core.cpp
 target_link_libraries(test_pointnet2_core_modules ${PCL_LIBRARIES} ${TORCH_LIBRARIES})
 
 add_executable(train_pointnet2_sem_seg  src/train_pointnet2_sem_seg.cpp
+                                        src/pointnet2_sem_seg.cpp
+                                        src/pointnet2_core.cpp
+                                        src/pointnet2_utils.cpp
                                         src/uneven_ground_dataset.cpp)
 target_link_libraries(train_pointnet2_sem_seg ${PCL_LIBRARIES} ${TORCH_LIBRARIES})
 
@@ -43,4 +46,3 @@ install(TARGETS test_pointnet2_utils test_pointnet2_core_modules train_pointnet2
 
 install(DIRECTORY include/
         DESTINATION include/)
-

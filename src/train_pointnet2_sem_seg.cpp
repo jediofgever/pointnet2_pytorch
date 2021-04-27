@@ -18,25 +18,46 @@
 
 int main()
 {
-  std::string root_dir = "/home/ros2-foxy/uneven_ground_dataset";
-  torch::Device device = torch::kCPU;
+
+  int batch_size = 4;
+  torch::Device device = torch::kCUDA;
+  std::string root_dir = "/home/ros2-foxy/uneven_ground_dataset/limited";
+
+  auto net = std::make_shared<pointnet2_sem_seg::PointNet2SemSeg>();
+  torch::optim::Adam optimizer(net->parameters(), torch::optim::AdamOptions(0.001));
+  net->to(device);
 
   auto dataset = uneven_ground_dataset::UnevenGroudDataset(root_dir, device).map(
     torch::data::transforms::Stack<>());
-
-  int batch_size = 4;
   auto dataset_loader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(
     std::move(dataset), 4);
 
   // In a for loop you can now use your data.
   for (auto & batch : *dataset_loader) {
-    auto data = batch.data;
-    auto label = batch.target;
+    auto xyz = batch.data.to(device);
+    auto labels = batch.target.to(device);
+    xyz = xyz.to(torch::kF32);
+    labels = labels.to(torch::kLong);
 
-    std::cout << " data " << data.sizes() << std::endl;
-    std::cout << " label " << label.sizes() << std::endl;
+    // Permute the channels so that we have  : [B,C,N]
+    xyz = xyz.permute({0, 2, 1});
+    optimizer.zero_grad();
+    auto net_output = net->forward(&xyz);
+
+    net_output.first = net_output.first.reshape({4, 4400});
+    labels = labels.reshape({4, 4400});
+
+    std::cout << "net_output.first" << net_output.first.sizes() << std::endl;
+    std::cout << "labels" << labels.sizes() << std::endl;
+
+    auto loss = torch::nll_loss(torch::log_softmax(net_output.first, /*dim=*/ 1), labels);
+
+    loss.backward();
+    // Update the parameters based on the calculated gradients.
+    optimizer.step();
+    // Output the loss and checkpoint every 100 batches.
+    std::cout << loss.item<float>() << std::endl;
   }
-
   std::cout << "Pointnet2 sem segmentation training Successful." << std::endl;
   return EXIT_SUCCESS;
 }

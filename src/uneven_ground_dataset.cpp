@@ -20,8 +20,9 @@ namespace uneven_ground_dataset
 UnevenGroudDataset::UnevenGroudDataset(std::string root_dir, at::Device device)
 {
   root_dir_ = root_dir;
+  std::cout << "given root directory:" << root_dir_ << std::endl;
   for (const auto & entry : std::filesystem::directory_iterator(root_dir_)) {
-    std::cout << entry.path() << std::endl;
+    std::cout << "processing: " << entry.path() << std::endl;
     filename_vector_.push_back(entry.path());
   }
 
@@ -32,15 +33,15 @@ UnevenGroudDataset::UnevenGroudDataset(std::string root_dir, at::Device device)
       crr_file, 2200, device);
     if (index == 0) {
       xyz_ = xyz_labels_pair.first;
-      labels_ = xyz_labels_pair.first;
+      labels_ = xyz_labels_pair.second;
     } else {
       torch::cat({xyz_, xyz_labels_pair.first}, 0);
       torch::cat({labels_, xyz_labels_pair.second}, 0);
     }
+    index++;
   }
   std::cout << " xyz_.size() " << xyz_.sizes() << std::endl;
   std::cout << " labels_.size() " << labels_.sizes() << std::endl;
-
 }
 
 UnevenGroudDataset::~UnevenGroudDataset()
@@ -60,7 +61,9 @@ std::pair<at::Tensor, at::Tensor> UnevenGroudDataset::load_pcl_as_torch_tensor(
   // Determine batches
   int B = cloud.points.size() % N;
   at::Tensor xyz = torch::zeros({B, N, 3}, device);
-  at::Tensor labels = torch::zeros({B, N, 1}, device);
+
+  // Two classes, traversable and NONtraversable
+  at::Tensor labels = torch::zeros({B, N, 2}, device);
 
   for (int i = 0; i < B; i++) {
     for (int j = 0; j < N; j++) {
@@ -71,11 +74,13 @@ std::pair<at::Tensor, at::Tensor> UnevenGroudDataset::load_pcl_as_torch_tensor(
         crr_xyz.index_put_({0, 1}, crr_point.y);
         crr_xyz.index_put_({0, 2}, crr_point.z);
         xyz.index_put_({i, j}, crr_xyz);
-        at::Tensor crr_label = at::zeros({1, 1}, device);
+        at::Tensor crr_label = at::zeros({1, 2}, device);
         if (crr_point.r /* red points ar NON traversable*/) {
           crr_label.index_put_({0, 0}, 0);
+          crr_label.index_put_({0, 1}, 1);
         } else {
           crr_label.index_put_({0, 0}, 1);
+          crr_label.index_put_({0, 1}, 0);
         }
         labels.index_put_({i, j}, crr_label);
       }

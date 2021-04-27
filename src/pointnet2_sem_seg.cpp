@@ -65,20 +65,23 @@ std::pair<at::Tensor, at::Tensor> PointNet2SemSeg::forward(at::Tensor * xyz)
       torch::indexing::Slice()});
 
   std::pair<at::Tensor,
-    at::Tensor> sa1_output = sa4_->forward(&input_xyz, &input_points);
+    at::Tensor> sa1_output = sa1_->forward(&input_xyz, &input_points);
   std::pair<at::Tensor,
-    at::Tensor> sa2_output = sa4_->forward(&sa1_output.first, &sa1_output.second);
+    at::Tensor> sa2_output = sa2_->forward(&sa1_output.first, &sa1_output.second);
   std::pair<at::Tensor,
-    at::Tensor> sa3_output = sa4_->forward(&sa2_output.first, &sa2_output.second);
+    at::Tensor> sa3_output = sa3_->forward(&sa2_output.first, &sa2_output.second);
   std::pair<at::Tensor,
     at::Tensor> sa4_output = sa4_->forward(&sa3_output.first, &sa3_output.second);
 
   sa3_output.second = fp4_->forward(
     &sa3_output.first, &sa4_output.first, &sa3_output.second, &sa4_output.second);
+
   sa2_output.second = fp3_->forward(
     &sa2_output.first, &sa3_output.first, &sa2_output.second, &sa3_output.second);
+
   sa1_output.second = fp2_->forward(
     &sa1_output.first, &sa2_output.first, &sa1_output.second, &sa2_output.second);
+
   auto final_layer = fp1_->forward(
     &input_xyz, &sa1_output.first, nullptr, &sa1_output.second);
 
