@@ -63,7 +63,7 @@ std::pair<at::Tensor, at::Tensor> UnevenGroudDataset::load_pcl_as_torch_tensor(
   at::Tensor xyz = torch::zeros({B, N, 3}, device);
 
   // Two classes, traversable and NONtraversable
-  at::Tensor labels = torch::zeros({B, N, 2}, device);
+  at::Tensor labels = torch::zeros({B, N, 1}, device);
 
   for (int i = 0; i < B; i++) {
     for (int j = 0; j < N; j++) {
@@ -74,13 +74,11 @@ std::pair<at::Tensor, at::Tensor> UnevenGroudDataset::load_pcl_as_torch_tensor(
         crr_xyz.index_put_({0, 1}, crr_point.y);
         crr_xyz.index_put_({0, 2}, crr_point.z);
         xyz.index_put_({i, j}, crr_xyz);
-        at::Tensor crr_label = at::zeros({1, 2}, device);
+        at::Tensor crr_label = at::zeros({1, 1}, device);
         if (crr_point.r /* red points ar NON traversable*/) {
           crr_label.index_put_({0, 0}, 0);
-          crr_label.index_put_({0, 1}, 1);
         } else {
           crr_label.index_put_({0, 0}, 1);
-          crr_label.index_put_({0, 1}, 0);
         }
         labels.index_put_({i, j}, crr_label);
       }
