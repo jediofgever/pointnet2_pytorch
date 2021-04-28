@@ -38,7 +38,6 @@ PointNet2SemSeg::PointNet2SemSeg()
       64, 0.8, 32,
       256 + 3, {256, 256, 512}, false));
 
-
   fp4_ =
     std::make_shared<pointnet2_core::PointNetFeaturePropagation>(
     pointnet2_core::PointNetFeaturePropagation(768, {256, 256}));
