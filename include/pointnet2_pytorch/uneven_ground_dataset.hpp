@@ -21,7 +21,9 @@ namespace uneven_ground_dataset
 class UnevenGroudDataset : public torch::data::Dataset<UnevenGroudDataset>
 {
 public:
-  UnevenGroudDataset(std::string root_dir /*root directory to dataset*/, at::Device device);
+  UnevenGroudDataset(
+    std::string root_dir /*root directory to dataset*/, at::Device device,
+    int num_point_per_batch);
   ~UnevenGroudDataset();
 
   torch::data::Example<at::Tensor, at::Tensor> get(size_t index) override;
@@ -34,6 +36,7 @@ private:
   std::vector<std::string> filename_vector_;
   at::Tensor xyz_;
   at::Tensor labels_;
+  int num_point_per_batch_;
 };
 
 }  // namespace uneven_ground_dataset

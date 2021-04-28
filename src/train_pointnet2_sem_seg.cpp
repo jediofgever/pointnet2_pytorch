@@ -19,7 +19,8 @@
 int main()
 {
 
-  int batch_size = 8;
+  int batch_size = 16;
+  int num_point_per_batch = 2400;
 
   torch::Device cuda_device = torch::kCUDA;
 
@@ -29,7 +30,9 @@ int main()
   torch::optim::Adam optimizer(net->parameters(), torch::optim::AdamOptions(0.001));
   net->to(cuda_device);
 
-  auto dataset = uneven_ground_dataset::UnevenGroudDataset(root_dir, cuda_device).map(
+  auto dataset = uneven_ground_dataset::UnevenGroudDataset(
+    root_dir, cuda_device,
+    num_point_per_batch).map(
     torch::data::transforms::Stack<>());
   auto dataset_loader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(
     std::move(dataset), batch_size);
@@ -59,10 +62,8 @@ int main()
       {labels_shape[0] *
         labels_shape[1] *
         labels_shape[2]});
-
     torch::nn::NLLLoss criterion;
     auto loss = criterion->forward(net_output.first, labels);
-
     loss.backward();
     // Update the parameters based on the calculated gradients.
     optimizer.step();

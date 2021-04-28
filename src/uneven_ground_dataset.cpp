@@ -17,8 +17,11 @@
 namespace uneven_ground_dataset
 {
 
-UnevenGroudDataset::UnevenGroudDataset(std::string root_dir, at::Device device)
+UnevenGroudDataset::UnevenGroudDataset(
+  std::string root_dir, at::Device device,
+  int num_point_per_batch)
 {
+  num_point_per_batch_ = num_point_per_batch;
   root_dir_ = root_dir;
   std::cout << "given root directory:" << root_dir_ << std::endl;
   for (const auto & entry : std::filesystem::directory_iterator(root_dir_)) {
@@ -30,7 +33,7 @@ UnevenGroudDataset::UnevenGroudDataset(std::string root_dir, at::Device device)
 
   for (auto && crr_file : filename_vector_) {
     std::pair<at::Tensor, at::Tensor> xyz_labels_pair = load_pcl_as_torch_tensor(
-      crr_file, 2200, device);
+      crr_file, num_point_per_batch_, device);
     if (index == 0) {
       xyz_ = xyz_labels_pair.first;
       labels_ = xyz_labels_pair.second;
@@ -40,8 +43,8 @@ UnevenGroudDataset::UnevenGroudDataset(std::string root_dir, at::Device device)
     }
     index++;
   }
-  std::cout << " xyz_.size() " << xyz_.sizes() << std::endl;
-  std::cout << " labels_.size() " << labels_.sizes() << std::endl;
+  std::cout << "shape of input data xyz_ " << xyz_.sizes() << std::endl;
+  std::cout << "shape of input labels labels_" << labels_.sizes() << std::endl;
 }
 
 UnevenGroudDataset::~UnevenGroudDataset()
@@ -59,7 +62,7 @@ std::pair<at::Tensor, at::Tensor> UnevenGroudDataset::load_pcl_as_torch_tensor(
   }
   // Convert cloud to a tensor with shape of [B,N,C]
   // Determine batches
-  int B = cloud.points.size() % N;
+  int B = std::floor(cloud.points.size() / N);
   at::Tensor xyz = torch::zeros({B, N, 3}, device);
 
   // Two classes, traversable and NONtraversable
