@@ -19,7 +19,7 @@
 int main()
 {
 
-  int batch_size = 4;
+  int batch_size = 8;
 
   torch::Device cuda_device = torch::kCUDA;
 
@@ -36,6 +36,7 @@ int main()
 
   // In a for loop you can now use your data.
   for (auto & batch : *dataset_loader) {
+
     auto xyz = batch.data.to(cuda_device).requires_grad_(true);
     auto labels = batch.target.to(cuda_device);
     xyz = xyz.to(torch::kF32);
