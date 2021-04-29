@@ -19,8 +19,9 @@ namespace uneven_ground_dataset
 
 UnevenGroudDataset::UnevenGroudDataset(
   std::string root_dir, at::Device device,
-  int num_point_per_batch)
+  int num_point_per_batch, double downsample_leaf_size)
 {
+  downsample_leaf_size_ = downsample_leaf_size;
   num_point_per_batch_ = num_point_per_batch;
   root_dir_ = root_dir;
   std::cout << "given root directory:" << root_dir_ << std::endl;
@@ -54,15 +55,24 @@ UnevenGroudDataset::~UnevenGroudDataset()
 std::pair<at::Tensor, at::Tensor> UnevenGroudDataset::load_pcl_as_torch_tensor(
   const std::string cloud_filename, int N, torch::Device device)
 {
-  pcl::PointCloud<pcl::PointXYZRGB> cloud;
-  if (!pcl::io::loadPCDFile(cloud_filename, cloud)) {
-    std::cout << "Gonna load a cloud with " << cloud.points.size() << " points" << std::endl;
+
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
+  if (!pcl::io::loadPCDFile(cloud_filename, *cloud)) {
+    std::cout << "Gonna load a cloud with " << cloud->points.size() << " points" << std::endl;
   } else {
     std::cerr << "Could not read PCD file: " << cloud_filename << std::endl;
+    return std::make_pair(at::empty({1}, device), at::empty({1}, device));
   }
+
+  if (downsample_leaf_size_ > 0.0) {
+    std::cout << "Gonna downsample cloud with leaf size of  " << downsample_leaf_size_ << std::endl;
+    *cloud = downsampleInputCloud(cloud, downsample_leaf_size_);
+  }
+  std::cout << "Cloud has " << cloud->points.size() << " points after downsample" << std::endl;
+
   // Convert cloud to a tensor with shape of [B,N,C]
   // Determine batches
-  int B = std::floor(cloud.points.size() / N);
+  int B = std::floor(cloud->points.size() / N);
   at::Tensor xyz = torch::zeros({B, N, 3}, device);
 
   // Two classes, traversable and NONtraversable
@@ -70,8 +80,8 @@ std::pair<at::Tensor, at::Tensor> UnevenGroudDataset::load_pcl_as_torch_tensor(
 
   for (int i = 0; i < B; i++) {
     for (int j = 0; j < N; j++) {
-      if (i * N + j < cloud.points.size()) {
-        pcl::PointXYZRGB crr_point = cloud.points[i * N + j];
+      if (i * N + j < cloud->points.size()) {
+        pcl::PointXYZRGB crr_point = cloud->points[i * N + j];
         at::Tensor crr_xyz = at::zeros({1, 3}, device);
         crr_xyz.index_put_({0, 0}, crr_point.x);
         crr_xyz.index_put_({0, 1}, crr_point.y);
@@ -98,5 +108,16 @@ torch::data::Example<at::Tensor, at::Tensor> UnevenGroudDataset::get(size_t inde
 torch::optional<size_t> UnevenGroudDataset::size() const
 {
   return xyz_.sizes().front();
+}
+
+pcl::PointCloud<pcl::PointXYZRGB> UnevenGroudDataset::downsampleInputCloud(
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr inputCloud, double downsmaple_leaf_size)
+{
+  pcl::VoxelGrid<pcl::PointXYZRGB> voxelGrid;
+  voxelGrid.setInputCloud(inputCloud);
+  voxelGrid.setLeafSize(downsmaple_leaf_size, downsmaple_leaf_size, downsmaple_leaf_size);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr downsampledCloud(new pcl::PointCloud<pcl::PointXYZRGB>());
+  voxelGrid.filter(*downsampledCloud);
+  return *downsampledCloud;
 }
 }  // namespace uneven_ground_dataset

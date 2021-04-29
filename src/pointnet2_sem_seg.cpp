@@ -25,7 +25,7 @@ PointNet2SemSeg::PointNet2SemSeg()
   sa2_ =
     std::make_shared<pointnet2_core::PointNetSetAbstraction>(
     pointnet2_core::PointNetSetAbstraction(
-      512, 0.2, 32,
+      256, 0.2, 32,
       64 + 3, {64, 64, 128}, false));
   sa3_ =
     std::make_shared<pointnet2_core::PointNetSetAbstraction>(
@@ -35,7 +35,7 @@ PointNet2SemSeg::PointNet2SemSeg()
   sa4_ =
     std::make_shared<pointnet2_core::PointNetSetAbstraction>(
     pointnet2_core::PointNetSetAbstraction(
-      64, 0.8, 32,
+      32, 0.8, 32,
       256 + 3, {256, 256, 512}, false));
 
   fp4_ =
@@ -95,10 +95,9 @@ std::pair<at::Tensor, at::Tensor> PointNet2SemSeg::forward(at::Tensor * xyz)
   conv2->to(xyz->device());
 
   auto x = torch::nn::functional::relu(bn1(conv1(final_layer)));
+  x = drop1(x);
   x = conv2(x);
-  x = torch::nn::functional::log_softmax(x, 1);
   x = x.permute({0, 2, 1});
-
   return std::make_pair(x, sa4_output.second);
 }
 

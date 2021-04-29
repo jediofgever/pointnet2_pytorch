@@ -15,61 +15,69 @@
 #include <pointnet2_pytorch/pointnet2_sem_seg.hpp>
 #include <pointnet2_pytorch/uneven_ground_dataset.hpp>
 
-
 int main()
 {
-
-  int batch_size = 1;
-  int num_point_per_batch = 4096;
+  double downsample_voxel_size = 0.25;
+  int batch_size = 3;
+  int epochs = 20;
+  int num_point_per_batch = 1024;
+  double learning_rate = 0.01;
 
   torch::Device cuda_device = torch::kCUDA;
 
-  std::string root_dir = "/home/ros2-foxy/uneven_ground_dataset/limited";
+  std::string root_dir = "/home/ros2-foxy/pointnet2_pytorch/data";
 
   auto net = std::make_shared<pointnet2_sem_seg::PointNet2SemSeg>();
-  torch::optim::Adam optimizer(net->parameters(), torch::optim::AdamOptions(0.001));
+  torch::optim::Adam optimizer(net->parameters(), torch::optim::AdamOptions(learning_rate));
   net->to(cuda_device);
 
   auto dataset = uneven_ground_dataset::UnevenGroudDataset(
     root_dir, cuda_device,
-    num_point_per_batch).map(
+    num_point_per_batch, downsample_voxel_size).map(
     torch::data::transforms::Stack<>());
   auto dataset_loader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(
     std::move(dataset), batch_size);
 
-  // In a for loop you can now use your data.
-  for (auto & batch : *dataset_loader) {
+  // Train the precious
+  for (int i = 0; i < epochs; i++) {
+    // In a for loop you can now use your data.
+    float loss_numerical = 0.0;
+    for (auto & batch : *dataset_loader) {
+      auto xyz = batch.data.to(cuda_device).requires_grad_(true);
+      auto labels = batch.target.to(cuda_device);
+      xyz = xyz.to(torch::kF32);
+      labels = labels.to(torch::kLong);
 
-    auto xyz = batch.data.to(cuda_device).requires_grad_(true);
-    auto labels = batch.target.to(cuda_device);
-    xyz = xyz.to(torch::kF32);
-    labels = labels.to(torch::kLong);
+      // Permute the channels so that we have  : [B,C,N]
+      xyz = xyz.permute({0, 2, 1});
+      optimizer.zero_grad();
+      auto net_output = net->forward(&xyz);
 
-    // Permute the channels so that we have  : [B,C,N]
-    xyz = xyz.permute({0, 2, 1});
-    optimizer.zero_grad();
-    auto net_output = net->forward(&xyz);
+      at::IntArrayRef output_shape = net_output.first.sizes();
+      at::IntArrayRef labels_shape = labels.sizes();
 
-    at::IntArrayRef output_shape = net_output.first.sizes();
-    at::IntArrayRef labels_shape = labels.sizes();
+      // Out: [B * N, num_classes]
+      // label: [B * N]
+      net_output.first = net_output.first.reshape(
+        {output_shape[0] * output_shape[1],
+          output_shape[2]});
+      labels = labels.reshape(
+        {labels_shape[0] *
+          labels_shape[1] *
+          labels_shape[2]});
 
-    // Out: [B * N, num_classes]
-    // label: [B * N]
-    net_output.first = net_output.first.reshape(
-      {output_shape[0] * output_shape[1],
-        output_shape[2]});
-    labels = labels.reshape(
-      {labels_shape[0] *
-        labels_shape[1] *
-        labels_shape[2]});
-    torch::nn::NLLLoss criterion;
-    auto loss = criterion->forward(net_output.first, labels);
-    loss.backward();
-    // Update the parameters based on the calculated gradients.
-    optimizer.step();
-    // Output the loss and checkpoint every 100 batches.
-    std::cout << "Crr Loss at: " << loss.item<float>() << std::endl;
+      auto loss = torch::nll_loss(net_output.first, labels);
+      loss.backward();
+      // Update the parameters based on the calculated gradients.
+      optimizer.step();
+      // Output the loss and checkpoint every 100 batches.
+      loss_numerical += loss.item<float>();
+    }
+    std::cout << "===================================" << std::endl;
+    std::cout << "========== Epoch %d =============== " << i << std::endl;
+    std::cout << "Loss: " << loss_numerical << std::endl;
   }
+
   std::cout << "Pointnet2 sem segmentation training Successful." << std::endl;
   return EXIT_SUCCESS;
 }
