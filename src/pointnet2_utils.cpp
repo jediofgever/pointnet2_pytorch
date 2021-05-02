@@ -17,130 +17,114 @@
 namespace pointnet2_utils
 {
 
-at::Tensor farthest_point_sample(at::Tensor * input_tensor, int num_samples, bool debug)
+at::Tensor square_distance(at::Tensor source_tensor, at::Tensor target_tensor)
 {
-  torch::Device device = input_tensor->device();
-  c10::IntArrayRef input_shape = input_tensor->sizes();
+  c10::IntArrayRef source_tensor_shape = source_tensor.sizes();
+  c10::IntArrayRef target_tensor_shape = target_tensor.sizes();
+
+  int B = source_tensor_shape[0];
+  int N = source_tensor_shape[1];
+  int M = target_tensor_shape[1];
+
+  auto dist = -2 * torch::matmul(source_tensor, target_tensor.permute({0, 2, 1}));
+
+  dist += torch::sum(source_tensor.pow(2), -1).view(
+    {B, N, 1});
+
+  dist += torch::sum(target_tensor.pow(2), -1).view(
+    {B, 1, M});
+
+  return dist;
+}
+
+at::Tensor index_points(at::Tensor points, at::Tensor idx)
+{
+  c10::IntArrayRef points_shape = points.sizes();
+  c10::IntArrayRef idx_shape = idx.sizes();
+  at::Tensor extracted_tensor;
+
+  if (idx.sizes().size() == 2) {
+    extracted_tensor = at::zeros(
+      {points_shape[0],
+        idx_shape[1],
+        points_shape[2]
+      },
+      idx.device());
+    for (int i = 0; i < idx_shape[0]; i++) {
+      for (int j = 0; j < idx_shape[1]; j++) {
+        pcl::PointXYZRGB crr_point;
+        int index = idx.index({i, j}).item<int>();
+        at::Tensor sampled_point = points.index({i, index});
+        extracted_tensor.index_put_({i, j}, sampled_point);
+      }
+    }
+  } else {
+    extracted_tensor = at::zeros(
+      {points_shape[0],
+        idx_shape[1],
+        idx_shape[2],
+        points_shape[2]
+      },
+      idx.device());
+
+
+    for (int i = 0; i < idx_shape[0]; i++) {
+      for (int j = 0; j < idx_shape[1]; j++) {
+        for (int k = 0; k < idx_shape[2]; k++) {
+          pcl::PointXYZRGB crr_point;
+          int index = idx.index({i, j, k}).item<int>();
+          at::Tensor sampled_point = points.index({i, index});
+          extracted_tensor.index_put_({i, j, k}, sampled_point);
+        }
+      }
+    }
+  }
+  return extracted_tensor;
+}
+
+at::Tensor farthest_point_sample(at::Tensor input_tensor, int num_samples)
+{
+  torch::Device device = input_tensor.device();
+  c10::IntArrayRef input_shape = input_tensor.sizes();
+
   c10::IntArrayRef output_shape = {input_shape.front(), num_samples};
 
   //  options for indice tensors
   auto options =
     torch::TensorOptions()
     .dtype(torch::kLong)
-    .device(device)
-    .requires_grad(true);
+    .device(device);
 
   at::Tensor centroids = at::zeros(output_shape, options);
+
   at::Tensor distance =
-    at::ones(input_shape.slice(0, 2), torch::dtype(torch::kFloat32).device(device)).multiply(1e10);
+    at::ones(
+    {input_shape[0], input_shape[1]},
+    torch::dtype(torch::kFloat32).device(device)).multiply(1e10);
+
   at::Tensor farthest =
-    at::randint(0, input_shape.slice(0, 2).back(), input_shape.front(), options);
+    at::randint(0, input_shape[1], {input_shape.front(), }, options);
   at::Tensor batch_indices = at::arange(0, input_shape.front(), options);
 
   for (int i = 0; i < num_samples; i++) {
 
     centroids.index_put_({torch::indexing::Slice(), i}, farthest);
+
     at::Tensor centroid =
-      input_tensor->index(
+
+      input_tensor.index(
       {batch_indices, farthest, torch::indexing::Slice()})
       .view({input_shape.front(), 1, 3});
 
     at::Tensor dist = torch::sum(
-      (input_tensor->subtract(centroid))
+      (input_tensor.subtract(centroid))
       .pow(2), -1);
 
     at::Tensor mask = dist < distance;
     distance.index_put_({mask}, dist.index({mask}));
     farthest = std::get<1>(torch::max(distance, -1));
   }
-  if (debug) {
-    std::cout << "fps: resulting centroids." << centroids << std::endl;
-    std::cout << "fps: input_shape." << input_shape << std::endl;
-    std::cout << "fps: input_tensor." << *input_tensor << std::endl;
-    std::cout << "fps: device." << device << std::endl;
-  }
   return centroids;
-}
-
-at::Tensor extract_tensor_from_indices(at::Tensor * input_tensor, at::Tensor * input_indices)
-{
-  // This indices are usally
-  c10::IntArrayRef input_shape = input_indices->sizes();
-  at::Tensor extracted_tensor = at::zeros(
-    {input_shape[0],
-      input_shape[1],
-      3},
-    input_indices->device());
-
-  for (int i = 0; i < input_shape[0]; i++) {
-    for (int j = 0; j < input_shape[1]; j++) {
-      pcl::PointXYZRGB crr_point;
-      int index = input_indices->index({i, j}).item<int>();
-
-      at::Tensor sampled_point = input_tensor->index({i, index});
-      extracted_tensor.index_put_({i, j}, sampled_point);
-    }
-  }
-  return extracted_tensor;
-}
-
-at::Tensor extract_tensor_from_grouped_indices(
-  at::Tensor * input_tensor,
-  at::Tensor * input_indices)
-{
-  // This indices are usally
-  c10::IntArrayRef input_tensor_shape = input_tensor->sizes();
-  c10::IntArrayRef input_indices_shape = input_indices->sizes();
-
-  at::Tensor extracted_tensor = at::zeros(
-    {input_indices_shape[0],
-      input_indices_shape[1] * input_indices_shape[2],
-      input_tensor_shape.back()},
-    input_indices->device());
-
-  for (int i = 0; i < input_indices_shape[0]; i++) {
-    for (int j = 0; j < input_indices_shape[1]; j++) {
-      for (int k = 0; k < input_indices_shape[2]; k++) {
-        pcl::PointXYZRGB crr_point;
-        int index = input_indices->index({i, j, k}).item<int>();
-        at::Tensor sampled_point = input_tensor->index({i, index});
-        extracted_tensor.index_put_({i, j * input_indices_shape[2] + k}, sampled_point);
-      }
-    }
-  }
-  return extracted_tensor;
-}
-
-at::Tensor extract_points_tensor_from_indices(
-  at::Tensor * input_tensor,
-  at::Tensor * input_indices)
-{
-  // This indices are usally
-  c10::IntArrayRef input_tensor_shape = input_tensor->sizes();
-  c10::IntArrayRef input_indices_shape = input_indices->sizes();
-
-  at::Tensor extracted_tensor = at::zeros(
-    {input_indices_shape[0],
-      input_indices_shape[1], 
-      input_indices_shape[2],
-      input_tensor_shape.back()},
-    input_indices->device());
-
-  for (int i = 0; i < input_indices_shape[0]; i++) {
-    for (int j = 0; j < input_indices_shape[1]; j++) {
-      for (int k = 0; k < input_indices_shape[2]; k++) {
-
-        pcl::PointXYZRGB crr_point;
-        int index = input_indices->index({i, j, k}).item<int>();
-
-        at::Tensor sampled_point = input_tensor->index({i, index});
-
-        extracted_tensor.index_put_({i, j, k}, sampled_point);
-
-      }
-    }
-  }
-  return extracted_tensor;
 }
 
 void check_avail_device()
@@ -154,24 +138,10 @@ void check_avail_device()
   }
 }
 
-at::Tensor square_distance(at::Tensor * source_tensor, at::Tensor * target_tensor)
+at::Tensor query_ball_point(double radius, int nsample, at::Tensor xyz, at::Tensor new_xyz)
 {
-  c10::IntArrayRef source_tensor_shape = source_tensor->sizes();
-  c10::IntArrayRef target_tensor_shape = target_tensor->sizes();
-
-  auto dist = -2 * torch::matmul(*source_tensor, target_tensor->permute({0, 2, 1}));
-  dist += torch::sum(source_tensor->pow(2), -1).view(
-    {source_tensor_shape[0], source_tensor_shape[1], 1});
-  dist += torch::sum(target_tensor->pow(2), -1).view(
-    {source_tensor_shape[0], 1, target_tensor_shape[1]});
-
-  return dist;
-}
-
-at::Tensor query_ball_point(double radius, int nsample, at::Tensor * xyz, at::Tensor * new_xyz)
-{
-  c10::IntArrayRef xyz_shape = xyz->sizes();
-  c10::IntArrayRef new_xyz_shape = new_xyz->sizes();
+  c10::IntArrayRef xyz_shape = xyz.sizes();
+  c10::IntArrayRef new_xyz_shape = new_xyz.sizes();
 
   int B, N, C, S;
   B = xyz_shape[0];
@@ -182,7 +152,7 @@ at::Tensor query_ball_point(double radius, int nsample, at::Tensor * xyz, at::Te
   auto group_idx =
     torch::arange(
     {N},
-    torch::dtype(torch::kLong).device(xyz->device())).view({1, 1, N}).repeat({B, S, 1});
+    torch::dtype(torch::kLong).device(xyz.device())).view({1, 1, N}).repeat({B, S, 1});
 
   auto sqrdists = square_distance(new_xyz, xyz);
 
@@ -205,34 +175,35 @@ at::Tensor query_ball_point(double radius, int nsample, at::Tensor * xyz, at::Te
 
 std::pair<at::Tensor, at::Tensor> sample_and_group(
   int npoint, double radius, int nsample,
-  at::Tensor * xyz, at::Tensor * points)
+  at::Tensor xyz, at::Tensor points)
 {
-  c10::IntArrayRef xyz_shape = xyz->sizes();
+
+  c10::IntArrayRef xyz_shape = xyz.sizes();
   int D = 0;
-  if (points != nullptr) {
-    c10::IntArrayRef points_shape = points->sizes();
+
+  if (points.sizes().size()) {
+    c10::IntArrayRef points_shape = points.sizes();
     D = points_shape[2];
   }
 
-  int B, N, C;
+  int B, N, C, S;
   B = xyz_shape[0];
   N = xyz_shape[1];
   C = xyz_shape[2];
+  S = npoint;
 
-  auto fps_sampled_indices = farthest_point_sample(xyz, npoint, false);
-  auto new_xyz = extract_tensor_from_indices(xyz, &fps_sampled_indices);
-  auto idx = query_ball_point(radius, nsample, xyz, &new_xyz);
-  auto grouped_xyz = extract_tensor_from_grouped_indices(xyz, &idx);
-
-
-  grouped_xyz = grouped_xyz.view({B, npoint, nsample, C});
+  auto fps_sampled_indices = farthest_point_sample(xyz, npoint);
+  auto new_xyz = index_points(xyz, fps_sampled_indices);
+  auto idx = query_ball_point(radius, nsample, xyz, new_xyz);
+  auto grouped_xyz = index_points(xyz, idx);
+  auto grouped_xyz_norm = grouped_xyz - new_xyz.view({B, S, 1, C});
 
   at::Tensor new_points = at::zeros(
     {B, npoint, nsample, C + D},
-    xyz->device());
+    xyz.device());
 
-  if (points != nullptr) {
-    auto grouped_points = extract_tensor_from_grouped_indices(points, &idx);
+  if (points.sizes().size()) {
+    auto grouped_points = index_points(points, idx);
     grouped_points = grouped_points.view({B, npoint, nsample, D});
     new_points = torch::cat({grouped_xyz, grouped_points}, -1);
   } else {
