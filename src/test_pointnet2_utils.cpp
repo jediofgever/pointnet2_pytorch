@@ -21,40 +21,47 @@ int main()
   pointnet2_utils::check_avail_device();
 
   // Initialize some random
-  int kB = 16; // Batch
+  int kB = 4; // Batch
   int kN = 2048; // Number of points in each batch
-  int kFPS_SAMPLES = 128; // FPS going to sample kFPS_SAMPLES points
+  int kFPS_SAMPLES = 64; // FPS going to sample kFPS_SAMPLES points
   int kC = 3; // number of channels
   int kMAX_N_POINTS_IN_RADIUS = 8;
-  double kRADIUS = 0.1;
-
+  double kRADIUS = 0.04;
 
   c10::IntArrayRef test_tensor_shape = {kB, kN, kC};
   torch::Device cuda_device = torch::kCUDA;
-  at::Tensor test_tensor = at::rand(test_tensor_shape, cuda_device);
+  //at::Tensor test_tensor = at::rand(test_tensor_shape, cuda_device);
+
+  // Pass a real point cloud to pass through SA and FP stacks of layers
+  auto test_tensor = pointnet2_utils::load_pcl_as_torch_tensor(
+    "/home/ros2-foxy/pointnet2_pytorch/data/norm_train46.pcd", 2048, cuda_device);
+
+  // Since the tensor might to large, might nt fit to memory, so slie the first 4 Batches
+  test_tensor = test_tensor.index(
+    {at::indexing::Slice(at::indexing::None, kB)});
 
   // to test FPS(Furthest-point-sampleing algorithm) =============================
   at::Tensor fps_sampled_tensor_indices = pointnet2_utils::farthest_point_sample(
-    &test_tensor,
-    kFPS_SAMPLES,
-    false);
-  
-  at::Tensor fps_sampled_tensor = pointnet2_utils::extract_tensor_from_indices(
-    &test_tensor,
-    &fps_sampled_tensor_indices
+    test_tensor,
+    kFPS_SAMPLES);
+
+  at::Tensor fps_sampled_tensor = pointnet2_utils::index_points(
+    test_tensor,
+    fps_sampled_tensor_indices
   );
+
   //std::cout << "test_tensor: \n" << test_tensor << std::endl;
   //std::cout << "fps_sampled_tensor_indices: \n" << fps_sampled_tensor_indices << std::endl;
   //std::cout << "fps_sampled_tensor:  \n" << fps_sampled_tensor << std::endl;
 
   // Test Square distance function ================================================
-  //at::Tensor distance_tensor = pointnet2_utils::square_distance(&fps_sampled_tensor, &test_tensor);
+  at::Tensor distance_tensor = pointnet2_utils::square_distance(fps_sampled_tensor, test_tensor);
   // std::cout << "distance_tensor:  \n" << distance_tensor << std::endl;
 
   // Test query_ball_point function ===============================================
-  // at::Tensor group_idx = pointnet2_utils::query_ball_point(
-  //  kRADIUS, kMAX_N_POINTS_IN_RADIUS, &test_tensor,
-  //  &fps_sampled_tensor);
+  at::Tensor group_idx = pointnet2_utils::query_ball_point(
+    kRADIUS, kMAX_N_POINTS_IN_RADIUS, test_tensor,
+    fps_sampled_tensor);
   //std::cout << "test_tensor: \n" << test_tensor.sizes() << std::endl;
   //std::cout << "fps_sampled_tensor: \n" << fps_sampled_tensor.sizes() << std::endl;
   //std::cout << "group_idx:  \n" << group_idx << std::endl;
@@ -63,7 +70,7 @@ int main()
   // Test Sample and Group ==========================================================
   auto new_xyz_and_points = pointnet2_utils::sample_and_group(
     kFPS_SAMPLES, kRADIUS, kMAX_N_POINTS_IN_RADIUS,
-    &test_tensor, &test_tensor);
+    test_tensor, test_tensor);
 
   // Visualize results =============================================================
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr full_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -76,6 +83,7 @@ int main()
   pointnet2_utils::torch_tensor_to_pcl_cloud(
     &fps_sampled_tensor, fps_sampled_cloud,
     std::vector<double>({0.0, 255.0, 0}));
+
   pointnet2_utils::torch_tensor_to_pcl_cloud(
     &new_xyz_and_points.second, sampled_and_grouped_cloud,
     std::vector<double>({0.0, 0, 255.0}));

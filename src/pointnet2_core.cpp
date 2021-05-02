@@ -106,10 +106,12 @@ at::Tensor PointNetFeaturePropagation::forward(
       {torch::indexing::Slice(),
         torch::indexing::Slice(),
         torch::indexing::Slice(torch::indexing::None, 3)});
+
     auto idx = std::get<1>(dists_idx_tuple).index(
       {torch::indexing::Slice(),
         torch::indexing::Slice(),
         torch::indexing::Slice(torch::indexing::None, 3)});
+        
     // index smaller than  1e-10, set to  1e-10 to avoid division by zer0
     auto dist_recip = 1.0 / (dists + 1e-8);
     auto norm = torch::sum(dist_recip, 2, true);

@@ -23,52 +23,37 @@ namespace pointnet2_utils
 {
 
 /**
+* @brief retruns a Tensor containing squared distance from each of point in source tensor to each point in target_point
+*
+* @param source_tensor
+* @param target_tensor
+* @return at::Tensor
+*/
+at::Tensor square_distance(at::Tensor source_tensor, at::Tensor target_tensor);
+
+/**
+ * @brief
+ *
+ * @param points
+ * @param idx
+ * @return at::Tensor
+ */
+at::Tensor index_points(at::Tensor points, at::Tensor idx);
+
+/**
  * @brief  Sample num_samples points from points
            according to farthest point sampling (FPS) algorithm.
  * @param input_tensor
  * @param num_samples
  * @return at::Tensor
  */
-at::Tensor farthest_point_sample(at::Tensor * input_tensor, int num_samples, bool debug = false);
-
-/**
- * @brief Extracts points specified in input_indices from input_tensor and resturns the as a newly consteructed tensor
- *
- * @param input_tensor
- * @param input_indices
- * @return at::Tensor
- */
-at::Tensor extract_tensor_from_indices(at::Tensor * input_tensor, at::Tensor * input_indices);
-
-/**
- * @brief very similar function to extract_tensor_from_indices, but assumes input_tensor has shape of : [B, nsample, npoint, C]
- *
- * @param input_tensor
- * @param input_indices
- * @return at::Tensor
- */
-at::Tensor extract_tensor_from_grouped_indices(
-  at::Tensor * input_tensor,
-  at::Tensor * input_indices);
-
-at::Tensor extract_points_tensor_from_indices(
-  at::Tensor * input_tensor,
-  at::Tensor * input_indices);
+at::Tensor farthest_point_sample(at::Tensor input_tensor, int num_samples);
 
 /**
  * @brief  prints what device is available for use
  *
  */
 void check_avail_device();
-
-/**
- * @brief retruns a Tensor containing squared distance from each of point in source tensor to each point in target_point
- *
- * @param source_tensor
- * @param target_tensor
- * @return at::Tensor
- */
-at::Tensor square_distance(at::Tensor * source_tensor, at::Tensor * target_tensor);
 
 /**
  * @brief     Input:
@@ -85,7 +70,7 @@ at::Tensor square_distance(at::Tensor * source_tensor, at::Tensor * target_tenso
  * @param new_xyz
  * @return at::Tensor
  */
-at::Tensor query_ball_point(double radius, int nsample, at::Tensor * xyz, at::Tensor * new_xyz);
+at::Tensor query_ball_point(double radius, int nsample, at::Tensor xyz, at::Tensor new_xyz);
 
 /**
  * @brief     Input:
@@ -107,7 +92,7 @@ at::Tensor query_ball_point(double radius, int nsample, at::Tensor * xyz, at::Te
  */
 std::pair<at::Tensor, at::Tensor> sample_and_group(
   int npoint, double radius, int nsample,
-  at::Tensor * xyz, at::Tensor * points);
+  at::Tensor xyz, at::Tensor points);
 
 /**
  * @brief given a tensor which has pointcloud in it, fills point into a pointcloud ,

@@ -16,6 +16,8 @@
 #include <filesystem>
 #include <pcl/io/pcd_io.h>
 #include <pcl/filters/voxel_grid.h>
+#include <pcl/features/normal_3d.h>
+
 
 namespace uneven_ground_dataset
 {
@@ -24,7 +26,7 @@ class UnevenGroudDataset : public torch::data::Dataset<UnevenGroudDataset>
 public:
   UnevenGroudDataset(
     std::string root_dir /*root directory to dataset*/, at::Device device,
-    int num_point_per_batch, double downsample_leaf_size);
+    int num_point_per_batch, double downsample_leaf_size, bool use_normals_as_feature);
   ~UnevenGroudDataset();
 
   torch::data::Example<at::Tensor, at::Tensor> get(size_t index) override;
@@ -41,6 +43,7 @@ private:
   at::Tensor labels_;
   int num_point_per_batch_;
   double downsample_leaf_size_;
+  bool use_normals_as_feature_;
 };
 
 }  // namespace uneven_ground_dataset

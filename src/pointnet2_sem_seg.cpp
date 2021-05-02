@@ -21,7 +21,8 @@ PointNet2SemSeg::PointNet2SemSeg()
   sa1_ =
     std::make_shared<pointnet2_core::PointNetSetAbstraction>(
     pointnet2_core::PointNetSetAbstraction(
-      1024, 0.1, 32, 3 + 3, {32, 32, 64}, false));
+      1024, 0.1, 32,
+      6 + 3, {32, 32, 64}, false));
   sa2_ =
     std::make_shared<pointnet2_core::PointNetSetAbstraction>(
     pointnet2_core::PointNetSetAbstraction(
@@ -30,12 +31,12 @@ PointNet2SemSeg::PointNet2SemSeg()
   sa3_ =
     std::make_shared<pointnet2_core::PointNetSetAbstraction>(
     pointnet2_core::PointNetSetAbstraction(
-      128, 0.4, 32,
+      64, 0.4, 32,
       128 + 3, {128, 128, 256}, false));
   sa4_ =
     std::make_shared<pointnet2_core::PointNetSetAbstraction>(
     pointnet2_core::PointNetSetAbstraction(
-      32, 0.8, 32,
+      16, 0.8, 32,
       256 + 3, {256, 256, 512}, false));
 
   fp4_ =

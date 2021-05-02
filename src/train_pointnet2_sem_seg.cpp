@@ -17,23 +17,24 @@
 
 int main()
 {
-  double downsample_voxel_size = 0.25;
-  int batch_size = 3;
-  int epochs = 20;
+
+  double downsample_voxel_size = 0.04;
+  int batch_size = 1;
+  int epochs = 50;
   int num_point_per_batch = 1024;
   double learning_rate = 0.01;
+  bool use_normals_as_feature = true;
 
   torch::Device cuda_device = torch::kCUDA;
-
   std::string root_dir = "/home/ros2-foxy/pointnet2_pytorch/data";
-
   auto net = std::make_shared<pointnet2_sem_seg::PointNet2SemSeg>();
+
   torch::optim::Adam optimizer(net->parameters(), torch::optim::AdamOptions(learning_rate));
   net->to(cuda_device);
 
   auto dataset = uneven_ground_dataset::UnevenGroudDataset(
     root_dir, cuda_device,
-    num_point_per_batch, downsample_voxel_size).map(
+    num_point_per_batch, downsample_voxel_size, use_normals_as_feature).map(
     torch::data::transforms::Stack<>());
   auto dataset_loader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(
     std::move(dataset), batch_size);
@@ -42,6 +43,10 @@ int main()
   for (int i = 0; i < epochs; i++) {
     // In a for loop you can now use your data.
     float loss_numerical = 0.0;
+    double overall_batch_accu = 0.0;
+    double num_correct_points = 0.0;
+    int batch_counter = 0;
+
     for (auto & batch : *dataset_loader) {
       auto xyz = batch.data.to(cuda_device).requires_grad_(true);
       auto labels = batch.target.to(cuda_device);
@@ -56,6 +61,21 @@ int main()
       at::IntArrayRef output_shape = net_output.first.sizes();
       at::IntArrayRef labels_shape = labels.sizes();
 
+      auto predicted_label = torch::max(net_output.first, 2);
+
+      for (int k = 0; k < std::get<1>(predicted_label).sizes()[0]; k++) {
+        for (int j = 0; j < std::get<1>(predicted_label).sizes()[1]; j++) {
+
+          int predicted_value = std::get<1>(predicted_label).index({k, j}).item<int>();
+          int gt_value = labels.index({k, j}).item<int>();
+
+          if (predicted_value == gt_value) {
+            num_correct_points += 1.0;
+          }
+        }
+      }
+
+      batch_counter++;
       // Out: [B * N, num_classes]
       // label: [B * N]
       net_output.first = net_output.first.reshape(
@@ -73,9 +93,15 @@ int main()
       // Output the loss and checkpoint every 100 batches.
       loss_numerical += loss.item<float>();
     }
+
+    overall_batch_accu = num_correct_points /
+      static_cast<double>(batch_counter * batch_size * num_point_per_batch);
+
     std::cout << "===================================" << std::endl;
     std::cout << "========== Epoch %d =============== " << i << std::endl;
     std::cout << "Loss: " << loss_numerical << std::endl;
+    std::cout << "Overall Accuracy: " << overall_batch_accu << std::endl;
+
   }
 
   std::cout << "Pointnet2 sem segmentation training Successful." << std::endl;

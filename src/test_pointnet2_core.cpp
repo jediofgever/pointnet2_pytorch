@@ -22,18 +22,18 @@ int main(int argc, char const * argv[])
 
 
   // Set abstraction layers
-  pointnet2_core::PointNetSetAbstraction sa1(2048, 0.1, 32,
+  pointnet2_core::PointNetSetAbstraction sa1(1024, 0.1, 32,
     3 + 3, {32, 32, 64}, false);
-  pointnet2_core::PointNetSetAbstraction sa2(512, 0.2, 32,
+  pointnet2_core::PointNetSetAbstraction sa2(256, 0.2, 32,
     64 + 3, {64, 64, 128}, false);
-  pointnet2_core::PointNetSetAbstraction sa3(128, 0.4, 32,
+  pointnet2_core::PointNetSetAbstraction sa3(64, 0.4, 32,
     128 + 3, {128, 128, 256}, false);
-  pointnet2_core::PointNetSetAbstraction sa4(32, 0.8, 32,
+  pointnet2_core::PointNetSetAbstraction sa4(16, 0.8, 32,
     256 + 3, {256, 256, 512}, false);
 
   // Pass a real point cloud to pass through SA and FP stacks of layers
   auto tensor_from_cloud = pointnet2_utils::load_pcl_as_torch_tensor(
-    "/home/ros2-foxy/Downloads/test49.pcd", 1600, device);
+    "/home/ros2-foxy/pointnet2_pytorch/data/norm_train46.pcd", 1024, device);
 
   // Permute the channels so that we have  : [B,C,N]
   tensor_from_cloud = tensor_from_cloud.permute({0, 2, 1});
@@ -42,7 +42,7 @@ int main(int argc, char const * argv[])
 
   // Since the tensor might to large, might nt fit to memory, so slie the first 4 Batches
   at::Tensor sliced_tensor = tensor_from_cloud.index(
-    {toi::Slice(toi::None, 4)});
+    {toi::Slice(toi::None, 1)});
 
   at::Tensor input_points = sliced_tensor;
   at::Tensor input_xyz = sliced_tensor.index(
@@ -98,12 +98,36 @@ int main(int argc, char const * argv[])
 
   sa3_output.second = fp4.forward(
     &sa3_output.first, &sa4_output.first, &sa3_output.second, &sa4_output.second);
+
   sa2_output.second = fp3.forward(
     &sa2_output.first, &sa3_output.first, &sa2_output.second, &sa3_output.second);
+
   sa1_output.second = fp2.forward(
     &sa1_output.first, &sa2_output.first, &sa1_output.second, &sa2_output.second);
+
   auto final_layer = fp1.forward(
     &input_xyz, &sa1_output.first, nullptr, &sa1_output.second);
+
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr final_layer_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr fp4_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr fp3_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr fp2_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr fp1_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+
+  pointnet2_utils::torch_tensor_to_pcl_cloud(
+    &sa3_output.second, fp4_cloud, std::vector<double>({255.0, 0.0, 0}));
+  pointnet2_utils::torch_tensor_to_pcl_cloud(
+    &sa2_output.second, fp3_cloud, std::vector<double>({0.0, 255.0, 0.0}));
+  pointnet2_utils::torch_tensor_to_pcl_cloud(
+    &sa1_output.second, fp2_cloud, std::vector<double>({0.0, 0, 255.0}));
+  pointnet2_utils::torch_tensor_to_pcl_cloud(
+    &final_layer, final_layer_cloud, std::vector<double>({100.0, 100, 0}));
+
+  auto fp_merged_cloud = *final_layer_cloud + *fp2_cloud + *fp3_cloud + *fp4_cloud;
+  pcl::io::savePCDFile("../data/fp_pass.pcd", fp_merged_cloud, false);
+
+  std::cout << "Saved a cloud pass from set abstraction layers to ../data/sa_pass.pcd " <<
+    std::endl;
 
   auto conv1 = torch::nn::Conv1d(torch::nn::Conv1dOptions(128, 128, 1));
   auto bn1 = torch::nn::BatchNorm1d(torch::nn::BatchNorm1dOptions(128));
