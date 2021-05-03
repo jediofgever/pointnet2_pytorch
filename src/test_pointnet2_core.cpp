@@ -21,13 +21,13 @@ int main(int argc, char const * argv[])
   torch::Device device(cuda_available ? torch::kCUDA : torch::kCPU);
 
   // Set abstraction layers
-  pointnet2_core::PointNetSetAbstraction sa1(1024, 0.04, 32,
+  PointNetSetAbstraction sa1(1024, 0.04, 32,
     3 + 3, {32, 32, 64}, false);
-  pointnet2_core::PointNetSetAbstraction sa2(256, 0.08, 32,
+  PointNetSetAbstraction sa2(256, 0.08, 32,
     64 + 3, {64, 64, 128}, false);
-  pointnet2_core::PointNetSetAbstraction sa3(64, 0.16, 32,
+  PointNetSetAbstraction sa3(64, 0.16, 32,
     128 + 3, {128, 128, 256}, false);
-  pointnet2_core::PointNetSetAbstraction sa4(16, 0.32, 32,
+  PointNetSetAbstraction sa4(16, 0.32, 32,
     256 + 3, {256, 256, 512}, false);
 
   // Pass a real point cloud to pass through SA and FP stacks of layers
@@ -90,10 +90,10 @@ int main(int argc, char const * argv[])
   std::cout << "Saved a cloud pass from set abstraction layers to ../data/sa_pass.pcd " <<
     std::endl;
 
-  pointnet2_core::PointNetFeaturePropagation fp4(768, {256, 256});
-  pointnet2_core::PointNetFeaturePropagation fp3(384, {256, 256});
-  pointnet2_core::PointNetFeaturePropagation fp2(320, {256, 128});
-  pointnet2_core::PointNetFeaturePropagation fp1(128, {128, 128, 128});
+  PointNetFeaturePropagation fp4(768, {256, 256});
+  PointNetFeaturePropagation fp3(384, {256, 256});
+  PointNetFeaturePropagation fp2(320, {256, 128});
+  PointNetFeaturePropagation fp1(128, {128, 128, 128});
 
   sa3_output.second = fp4.forward(
     sa3_output.first, sa4_output.first, sa3_output.second, sa4_output.second);

@@ -14,9 +14,6 @@
 
 #include <pointnet2_pytorch/pointnet2_utils.hpp>
 
-namespace pointnet2_core
-{
-
 /**
  * @brief TODO
  *
@@ -46,7 +43,6 @@ public:
     int64_t npoint, float radius, int64_t nsample,
     int64_t in_channel, c10::IntArrayRef mlp, bool group_all);
 
-
   /**
    * @brief
          Input:
@@ -62,14 +58,15 @@ public:
    */
   std::pair<at::Tensor, at::Tensor> forward(at::Tensor xyz, at::Tensor points);
 
-protected:
+private:
   int64_t npoint_;
   float radius_;
   int64_t nsample_;
   int64_t last_channel_;
   bool group_all_;
-  std::vector<torch::nn::Conv2d> mlp_convs_;
-  std::vector<torch::nn::BatchNorm2d> mlp_bns_;
+
+  torch::nn::Conv2d conv1_, conv2_, conv3_;
+  torch::nn::BatchNorm2d batch_norm1_, batch_norm2_, batch_norm3_;
 };
 
 /**
@@ -87,7 +84,6 @@ public:
    */
   PointNetFeaturePropagation(
     int64_t in_channel, c10::IntArrayRef mlp);
-
 
   /**
    * @brief
@@ -109,10 +105,8 @@ public:
     at::Tensor xyz1, at::Tensor xyz2,
     at::Tensor points1, at::Tensor points2);
 
-protected:
-  std::vector<torch::nn::Conv1d> mlp_convs_;
-  std::vector<torch::nn::BatchNorm1d> mlp_bns_;
+private:
+  int num_mlp_channel_;
+  torch::nn::Conv1d conv1_, conv2_, conv3_;
+  torch::nn::BatchNorm1d batch_norm1_, batch_norm2_, batch_norm3_;
 };
-
-
-}  // namespace pointnet2_core

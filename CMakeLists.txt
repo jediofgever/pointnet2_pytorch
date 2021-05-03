@@ -32,7 +32,7 @@ target_link_libraries(test_pointnet2_core_modules ${PCL_LIBRARIES} ${TORCH_LIBRA
 
 
 add_executable(train_pointnet2_sem_seg  src/train_pointnet2_sem_seg.cpp
-                                        src/pointnet2_sem_seg.cpp
+                                       src/pointnet2_sem_seg.cpp
                                        src/pointnet2_core.cpp
                                        src/pointnet2_utils.cpp
                                        src/uneven_ground_dataset.cpp)

@@ -30,15 +30,22 @@ public:
   std::pair<at::Tensor, at::Tensor> forward(at::Tensor xyz);
 
 protected:
-  std::shared_ptr<pointnet2_core::PointNetSetAbstraction> sa1_;
-  std::shared_ptr<pointnet2_core::PointNetSetAbstraction> sa2_;
-  std::shared_ptr<pointnet2_core::PointNetSetAbstraction> sa3_;
-  std::shared_ptr<pointnet2_core::PointNetSetAbstraction> sa4_;
+  PointNetSetAbstraction sa1_;
+  PointNetSetAbstraction sa2_;
+  PointNetSetAbstraction sa3_;
+  PointNetSetAbstraction sa4_;
 
-  std::shared_ptr<pointnet2_core::PointNetFeaturePropagation> fp1_;
-  std::shared_ptr<pointnet2_core::PointNetFeaturePropagation> fp2_;
-  std::shared_ptr<pointnet2_core::PointNetFeaturePropagation> fp3_;
-  std::shared_ptr<pointnet2_core::PointNetFeaturePropagation> fp4_;
+  PointNetFeaturePropagation fp1_;
+  PointNetFeaturePropagation fp2_;
+  PointNetFeaturePropagation fp3_;
+  PointNetFeaturePropagation fp4_;
+
+  torch::nn::Conv1d conv1_;
+  torch::nn::BatchNorm1d batch_norm1_;
+  torch::nn::Dropout drop1_;
+  torch::nn::Conv1d conv2_;
+
+
 };
 
 

@@ -99,27 +99,23 @@ std::pair<at::Tensor, at::Tensor> UnevenGroudDataset::load_pcl_as_torch_tensor(
 
   for (int i = 0; i < B; i++) {
     for (int j = 0; j < N; j++) {
+
       if (i * N + j < cloud->points.size()) {
-
         pcl::PointXYZRGB crr_point = cloud->points[i * N + j];
-        pcl::Normal crr_point_normal = normals_out->points[i * N + j];
-
         at::Tensor crr_xyz = at::zeros({1, 3}, device);
-        at::Tensor crr_xyz_normal = at::zeros({1, 3}, device);
-
         crr_xyz.index_put_({0, 0}, crr_point.x);
         crr_xyz.index_put_({0, 1}, crr_point.y);
         crr_xyz.index_put_({0, 2}, crr_point.z);
-
-        crr_xyz_normal.index_put_({0, 0}, crr_point_normal.normal_x);
-        crr_xyz_normal.index_put_({0, 1}, crr_point_normal.normal_y);
-        crr_xyz_normal.index_put_({0, 2}, crr_point_normal.normal_z);
-
         xyz.index_put_({i, j, torch::indexing::Slice(torch::indexing::None, 3)}, crr_xyz);
-        xyz.index_put_({i, j, torch::indexing::Slice(3, torch::indexing::None)}, crr_xyz_normal);
 
-        std::cout << crr_xyz << std::endl;
-        std::cout << crr_xyz_normal << std::endl;
+        if (normals_out->points.size()) {
+          pcl::Normal crr_point_normal = normals_out->points[i * N + j];
+          at::Tensor crr_xyz_normal = at::zeros({1, 3}, device);
+          crr_xyz_normal.index_put_({0, 0}, crr_point_normal.normal_x);
+          crr_xyz_normal.index_put_({0, 1}, crr_point_normal.normal_y);
+          crr_xyz_normal.index_put_({0, 2}, crr_point_normal.normal_z);
+          xyz.index_put_({i, j, torch::indexing::Slice(3, torch::indexing::None)}, crr_xyz_normal);
+        }
 
         at::Tensor crr_label = at::zeros({1, 1}, device);
         if (crr_point.r /* red points ar NON traversable*/) {
@@ -130,6 +126,7 @@ std::pair<at::Tensor, at::Tensor> UnevenGroudDataset::load_pcl_as_torch_tensor(
         labels.index_put_({i, j}, crr_label);
       }
     }
+
   }
   return std::make_pair(xyz, labels);
 }

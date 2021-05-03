@@ -17,40 +17,36 @@
 namespace pointnet2_sem_seg
 {
 PointNet2SemSeg::PointNet2SemSeg()
-{
-  sa1_ =
-    std::make_shared<pointnet2_core::PointNetSetAbstraction>(
-    pointnet2_core::PointNetSetAbstraction(
+:   sa1_(PointNetSetAbstraction(
       1024, 0.04, 32,
-      6 + 3, {32, 32, 64}, false));
-  sa2_ =
-    std::make_shared<pointnet2_core::PointNetSetAbstraction>(
-    pointnet2_core::PointNetSetAbstraction(
-      256, 0.08, 32,
-      64 + 3, {64, 64, 128}, false));
-  sa3_ =
-    std::make_shared<pointnet2_core::PointNetSetAbstraction>(
-    pointnet2_core::PointNetSetAbstraction(
-      64, 0.16, 32,
-      128 + 3, {128, 128, 256}, false));
-  sa4_ =
-    std::make_shared<pointnet2_core::PointNetSetAbstraction>(
-    pointnet2_core::PointNetSetAbstraction(
-      16, 0.32, 32,
-      256 + 3, {256, 256, 512}, false));
+      3 + 3, {32, 32, 64}, false)),
 
-  fp4_ =
-    std::make_shared<pointnet2_core::PointNetFeaturePropagation>(
-    pointnet2_core::PointNetFeaturePropagation(768, {256, 256}));
-  fp3_ =
-    std::make_shared<pointnet2_core::PointNetFeaturePropagation>(
-    pointnet2_core::PointNetFeaturePropagation(384, {256, 256}));
-  fp2_ =
-    std::make_shared<pointnet2_core::PointNetFeaturePropagation>(
-    pointnet2_core::PointNetFeaturePropagation(320, {256, 128}));
-  fp1_ =
-    std::make_shared<pointnet2_core::PointNetFeaturePropagation>(
-    pointnet2_core::PointNetFeaturePropagation(128, {128, 128, 128}));
+  sa2_(PointNetSetAbstraction(
+      256, 0.08, 32,
+      64 + 3, {64, 64, 128}, false)),
+
+  sa3_(PointNetSetAbstraction(
+      64, 0.16, 32,
+      128 + 3, {128, 128, 256}, false)),
+
+  sa4_(PointNetSetAbstraction(
+      16, 0.32, 32,
+      256 + 3, {256, 256, 512}, false)),
+  fp4_(PointNetFeaturePropagation(768, {256, 256})),
+  fp3_(PointNetFeaturePropagation(384, {256, 256})),
+  fp2_(PointNetFeaturePropagation(320, {256, 128})),
+  fp1_(PointNetFeaturePropagation(128, {128, 128, 128})),
+
+  conv1_(torch::nn::Conv1dOptions(128, 128, 1)),
+  batch_norm1_(torch::nn::BatchNorm1d(128)),
+  drop1_(torch::nn::DropoutOptions(0.5)),
+  conv2_(torch::nn::Conv1dOptions(128, 2, 1))
+{
+
+  register_module("conv1_", conv1_);
+  register_module("batch_norm1_", batch_norm1_);
+  register_module("drop1_", drop1_);
+  register_module("conv2_", conv2_);
 }
 
 PointNet2SemSeg::~PointNet2SemSeg() {}
@@ -65,42 +61,37 @@ std::pair<at::Tensor, at::Tensor> PointNet2SemSeg::forward(at::Tensor xyz)
       torch::indexing::Slice()});
 
   std::pair<at::Tensor,
-    at::Tensor> sa1_output = sa1_->forward(input_xyz, input_points);
+    at::Tensor> sa1_output = sa1_.forward(input_xyz, input_points);
   std::pair<at::Tensor,
-    at::Tensor> sa2_output = sa2_->forward(sa1_output.first, sa1_output.second);
+    at::Tensor> sa2_output = sa2_.forward(sa1_output.first, sa1_output.second);
   std::pair<at::Tensor,
-    at::Tensor> sa3_output = sa3_->forward(sa2_output.first, sa2_output.second);
+    at::Tensor> sa3_output = sa3_.forward(sa2_output.first, sa2_output.second);
   std::pair<at::Tensor,
-    at::Tensor> sa4_output = sa4_->forward(sa3_output.first, sa3_output.second);
+    at::Tensor> sa4_output = sa4_.forward(sa3_output.first, sa3_output.second);
 
-  sa3_output.second = fp4_->forward(
+  sa3_output.second = fp4_.forward(
     sa3_output.first, sa4_output.first, sa3_output.second, sa4_output.second);
 
-  sa2_output.second = fp3_->forward(
+  sa2_output.second = fp3_.forward(
     sa2_output.first, sa3_output.first, sa2_output.second, sa3_output.second);
 
-  sa1_output.second = fp2_->forward(
+  sa1_output.second = fp2_.forward(
     sa1_output.first, sa2_output.first, sa1_output.second, sa2_output.second);
 
-  auto final_layer = fp1_->forward(
+  auto final_layer = fp1_.forward(
     input_xyz, sa1_output.first, at::empty(0), sa1_output.second);
 
-  auto conv1 = torch::nn::Conv1d(torch::nn::Conv1dOptions(128, 128, 1));
-  auto bn1 = torch::nn::BatchNorm1d(torch::nn::BatchNorm1dOptions(128));
-  auto drop1 = torch::nn::Dropout(torch::nn::DropoutOptions(0.5));
-  auto conv2 = torch::nn::Conv1d(torch::nn::Conv1dOptions(128, 2, 1));
 
-  conv1->to(xyz.device());
-  bn1->to(xyz.device());
-  drop1->to(xyz.device());
-  conv2->to(xyz.device());
+  conv1_->to(xyz.device());
+  batch_norm1_->to(xyz.device());
+  drop1_->to(xyz.device());
+  conv2_->to(xyz.device());
 
-  auto x = torch::nn::functional::relu(bn1(conv1(final_layer)));
-  x = drop1(x);
-  x = conv2(x);
+  auto x = torch::nn::functional::relu(batch_norm1_(conv1_(final_layer)));
+  x = drop1_(x);
+  x = conv2_(x);
   x = x.permute({0, 2, 1});
   return std::make_pair(x, sa4_output.second);
 }
-
 
 }  // namespace pointnet2_sem_seg

@@ -14,24 +14,30 @@
 
 #include <pointnet2_pytorch/pointnet2_core.hpp>
 
-namespace pointnet2_core
-{
 PointNetSetAbstraction::PointNetSetAbstraction(
   int64_t npoint, float radius, int64_t nsample,
-  int64_t in_channel, c10::IntArrayRef mlp, bool group_all)
+  int64_t in_channel, c10::IntArrayRef mlp, bool group_all) :
+
+conv1_(torch::nn::Conv2dOptions(in_channel, mlp[0], 1)),
+batch_norm1_(torch::nn::BatchNorm2dOptions(mlp[0])),
+
+conv2_(torch::nn::Conv2dOptions(mlp[0], mlp[1], 1)),
+batch_norm2_(torch::nn::BatchNorm2dOptions(mlp[1])),
+
+conv3_(torch::nn::Conv2dOptions(mlp[1], mlp[2], 1)),
+batch_norm3_(torch::nn::BatchNorm2dOptions(mlp[2]))
 {
   npoint_ = npoint;
   radius_ = radius;
   nsample_ = nsample;
-  last_channel_ = in_channel;
   group_all_ = group_all;
 
-  for (int i = 0; i < mlp.size(); i++) {
-    mlp_convs_.push_back(
-      torch::nn::Conv2d(torch::nn::Conv2dOptions(last_channel_, mlp.at(i), 1)));
-    mlp_bns_.push_back(torch::nn::BatchNorm2d(torch::nn::BatchNorm2dOptions(mlp.at(i))));
-    last_channel_ = mlp.at(i);
-  }
+  register_module("conv1_", conv1_);
+  register_module("conv2_", conv2_);
+  register_module("conv3_", conv3_);
+  register_module("batch_norm1_", batch_norm1_);
+  register_module("batch_norm2_", batch_norm2_);
+  register_module("batch_norm3_", batch_norm3_);
 }
 
 std::pair<at::Tensor, at::Tensor> PointNetSetAbstraction::forward(
@@ -53,13 +59,17 @@ std::pair<at::Tensor, at::Tensor> PointNetSetAbstraction::forward(
   // new_points shape :  [B, C+D, nsample,npoint]
   at::Tensor new_points = sampled_and_grouped.second.permute({0, 3, 2, 1});
 
-  for (size_t i = 0; i < mlp_convs_.size(); ++i) {
-    auto crr_conv = mlp_convs_[i];
-    auto crr_bn = mlp_bns_[i];
-    crr_conv->to(new_points.device());
-    crr_bn->to(new_points.device());
-    new_points = torch::nn::functional::relu(crr_bn(crr_conv(new_points)));
-  }
+  conv1_->to(new_points.device());
+  batch_norm1_->to(new_points.device());
+  new_points = torch::nn::functional::relu(batch_norm1_(conv1_(new_points)));
+
+  conv2_->to(new_points.device());
+  batch_norm2_->to(new_points.device());
+  new_points = torch::nn::functional::relu(batch_norm2_(conv2_(new_points)));
+
+  conv3_->to(new_points.device());
+  batch_norm3_->to(new_points.device());
+  new_points = torch::nn::functional::relu(batch_norm3_(conv3_(new_points)));
 
   new_points = std::get<0>(torch::max(new_points, 2));
   new_xyz = new_xyz.permute({0, 2, 1});
@@ -69,14 +79,28 @@ std::pair<at::Tensor, at::Tensor> PointNetSetAbstraction::forward(
 
 
 PointNetFeaturePropagation::PointNetFeaturePropagation(
-  int64_t in_channel, c10::IntArrayRef mlp)
+  int64_t in_channel, c10::IntArrayRef mlp) :
+
+conv1_(torch::nn::Conv1dOptions(in_channel, mlp[0], 1)),
+batch_norm1_(torch::nn::BatchNorm1dOptions(mlp[0])),
+
+conv2_(torch::nn::Conv1dOptions(mlp[0], mlp[1], 1)),
+batch_norm2_(torch::nn::BatchNorm1dOptions(mlp[1])),
+
+conv3_(mlp.size() == 3 ?
+  torch::nn::Conv1dOptions(mlp[1], mlp[2], 1) : torch::nn::Conv1dOptions(1, 1, 1)),
+batch_norm3_(mlp.size() == 3 ?
+  torch::nn::BatchNorm1dOptions(mlp[2]) : torch::nn::BatchNorm1dOptions(1))
 {
-  int64_t last_channel = in_channel;
-  for (int i = 0; i < mlp.size(); i++) {
-    mlp_convs_.push_back(
-      torch::nn::Conv1d((torch::nn::Conv1dOptions(last_channel, mlp.at(i), 1))));
-    mlp_bns_.push_back(torch::nn::BatchNorm1d(torch::nn::BatchNorm1dOptions(mlp.at(i))));
-    last_channel = mlp.at(i);
+  num_mlp_channel_ = mlp.size();
+  register_module("conv1_", conv1_);
+  register_module("conv2_", conv2_);
+  register_module("batch_norm1_", batch_norm1_);
+  register_module("batch_norm2_", batch_norm2_);
+
+  if (mlp.size() == 3) {
+    register_module("conv3_", conv3_);
+    register_module("batch_norm3_", batch_norm3_);
   }
 }
 
@@ -132,13 +156,20 @@ at::Tensor PointNetFeaturePropagation::forward(
     new_points = interpolated_points;
   }
   new_points = new_points.permute({0, 2, 1});
-  for (size_t i = 0; i < mlp_convs_.size(); ++i) {
-    auto crr_conv = mlp_convs_[i];
-    auto crr_bn = mlp_bns_[i];
-    crr_conv->to(new_points.device());
-    crr_bn->to(new_points.device());
-    new_points = torch::nn::functional::relu(crr_bn(crr_conv(new_points)));
+
+  conv1_->to(new_points.device());
+  batch_norm1_->to(new_points.device());
+  new_points = torch::nn::functional::relu(batch_norm1_(conv1_(new_points)));
+
+  conv2_->to(new_points.device());
+  batch_norm2_->to(new_points.device());
+  new_points = torch::nn::functional::relu(batch_norm2_(conv2_(new_points)));
+
+  if (num_mlp_channel_ == 3) {
+    conv3_->to(new_points.device());
+    batch_norm3_->to(new_points.device());
+    new_points = torch::nn::functional::relu(batch_norm3_(conv3_(new_points)));
   }
+
   return new_points;
 }
-}  // namespace pointnet2_core
