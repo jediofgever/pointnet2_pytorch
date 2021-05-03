@@ -23,10 +23,11 @@ int main()
   // Initialize some random
   int kB = 4; // Batch
   int kN = 2048; // Number of points in each batch
-  int kFPS_SAMPLES = 64; // FPS going to sample kFPS_SAMPLES points
+  int kFPS_SAMPLES = 128; // FPS going to sample kFPS_SAMPLES points
   int kC = 3; // number of channels
   int kMAX_N_POINTS_IN_RADIUS = 8;
   double kRADIUS = 0.04;
+
 
   c10::IntArrayRef test_tensor_shape = {kB, kN, kC};
   torch::Device cuda_device = torch::kCUDA;
@@ -85,7 +86,7 @@ int main()
     std::vector<double>({0.0, 255.0, 0}));
 
   pointnet2_utils::torch_tensor_to_pcl_cloud(
-    &new_xyz_and_points.second, sampled_and_grouped_cloud,
+    &new_xyz_and_points.first, sampled_and_grouped_cloud,
     std::vector<double>({0.0, 0, 255.0}));
 
   auto merged_cloud = *fps_sampled_cloud + *sampled_and_grouped_cloud + *full_cloud;

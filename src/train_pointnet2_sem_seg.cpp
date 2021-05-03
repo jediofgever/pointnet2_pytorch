@@ -18,7 +18,7 @@
 int main()
 {
 
-  double downsample_voxel_size = 0.04;
+  double downsample_voxel_size = 0.00;
   int batch_size = 1;
   int epochs = 50;
   int num_point_per_batch = 1024;
@@ -48,6 +48,7 @@ int main()
     int batch_counter = 0;
 
     for (auto & batch : *dataset_loader) {
+
       auto xyz = batch.data.to(cuda_device).requires_grad_(true);
       auto labels = batch.target.to(cuda_device);
       xyz = xyz.to(torch::kF32);
@@ -56,7 +57,7 @@ int main()
       // Permute the channels so that we have  : [B,C,N]
       xyz = xyz.permute({0, 2, 1});
       optimizer.zero_grad();
-      auto net_output = net->forward(&xyz);
+      auto net_output = net->forward(xyz);
 
       at::IntArrayRef output_shape = net_output.first.sizes();
       at::IntArrayRef labels_shape = labels.sizes();

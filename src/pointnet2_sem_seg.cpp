@@ -21,22 +21,22 @@ PointNet2SemSeg::PointNet2SemSeg()
   sa1_ =
     std::make_shared<pointnet2_core::PointNetSetAbstraction>(
     pointnet2_core::PointNetSetAbstraction(
-      1024, 0.1, 32,
+      1024, 0.04, 32,
       6 + 3, {32, 32, 64}, false));
   sa2_ =
     std::make_shared<pointnet2_core::PointNetSetAbstraction>(
     pointnet2_core::PointNetSetAbstraction(
-      256, 0.2, 32,
+      256, 0.08, 32,
       64 + 3, {64, 64, 128}, false));
   sa3_ =
     std::make_shared<pointnet2_core::PointNetSetAbstraction>(
     pointnet2_core::PointNetSetAbstraction(
-      64, 0.4, 32,
+      64, 0.16, 32,
       128 + 3, {128, 128, 256}, false));
   sa4_ =
     std::make_shared<pointnet2_core::PointNetSetAbstraction>(
     pointnet2_core::PointNetSetAbstraction(
-      16, 0.8, 32,
+      16, 0.32, 32,
       256 + 3, {256, 256, 512}, false));
 
   fp4_ =
@@ -55,45 +55,45 @@ PointNet2SemSeg::PointNet2SemSeg()
 
 PointNet2SemSeg::~PointNet2SemSeg() {}
 
-std::pair<at::Tensor, at::Tensor> PointNet2SemSeg::forward(at::Tensor * xyz)
+std::pair<at::Tensor, at::Tensor> PointNet2SemSeg::forward(at::Tensor xyz)
 {
-  at::Tensor input_points = *xyz;
+  at::Tensor input_points = xyz;
 
-  at::Tensor input_xyz = xyz->index(
+  at::Tensor input_xyz = xyz.index(
     {torch::indexing::Slice(),
       torch::indexing::Slice(torch::indexing::None, 3),
       torch::indexing::Slice()});
 
   std::pair<at::Tensor,
-    at::Tensor> sa1_output = sa1_->forward(&input_xyz, &input_points);
+    at::Tensor> sa1_output = sa1_->forward(input_xyz, input_points);
   std::pair<at::Tensor,
-    at::Tensor> sa2_output = sa2_->forward(&sa1_output.first, &sa1_output.second);
+    at::Tensor> sa2_output = sa2_->forward(sa1_output.first, sa1_output.second);
   std::pair<at::Tensor,
-    at::Tensor> sa3_output = sa3_->forward(&sa2_output.first, &sa2_output.second);
+    at::Tensor> sa3_output = sa3_->forward(sa2_output.first, sa2_output.second);
   std::pair<at::Tensor,
-    at::Tensor> sa4_output = sa4_->forward(&sa3_output.first, &sa3_output.second);
+    at::Tensor> sa4_output = sa4_->forward(sa3_output.first, sa3_output.second);
 
   sa3_output.second = fp4_->forward(
-    &sa3_output.first, &sa4_output.first, &sa3_output.second, &sa4_output.second);
+    sa3_output.first, sa4_output.first, sa3_output.second, sa4_output.second);
 
   sa2_output.second = fp3_->forward(
-    &sa2_output.first, &sa3_output.first, &sa2_output.second, &sa3_output.second);
+    sa2_output.first, sa3_output.first, sa2_output.second, sa3_output.second);
 
   sa1_output.second = fp2_->forward(
-    &sa1_output.first, &sa2_output.first, &sa1_output.second, &sa2_output.second);
+    sa1_output.first, sa2_output.first, sa1_output.second, sa2_output.second);
 
   auto final_layer = fp1_->forward(
-    &input_xyz, &sa1_output.first, nullptr, &sa1_output.second);
+    input_xyz, sa1_output.first, at::empty(0), sa1_output.second);
 
   auto conv1 = torch::nn::Conv1d(torch::nn::Conv1dOptions(128, 128, 1));
   auto bn1 = torch::nn::BatchNorm1d(torch::nn::BatchNorm1dOptions(128));
   auto drop1 = torch::nn::Dropout(torch::nn::DropoutOptions(0.5));
   auto conv2 = torch::nn::Conv1d(torch::nn::Conv1dOptions(128, 2, 1));
 
-  conv1->to(xyz->device());
-  bn1->to(xyz->device());
-  drop1->to(xyz->device());
-  conv2->to(xyz->device());
+  conv1->to(xyz.device());
+  bn1->to(xyz.device());
+  drop1->to(xyz.device());
+  conv2->to(xyz.device());
 
   auto x = torch::nn::functional::relu(bn1(conv1(final_layer)));
   x = drop1(x);

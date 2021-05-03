@@ -24,11 +24,10 @@ namespace pointnet2_sem_seg
 class PointNet2SemSeg : public torch::nn::Module
 {
 public:
-
   PointNet2SemSeg();
   ~PointNet2SemSeg();
-  
-  std::pair<at::Tensor, at::Tensor> forward(at::Tensor * xyz);
+
+  std::pair<at::Tensor, at::Tensor> forward(at::Tensor xyz);
 
 protected:
   std::shared_ptr<pointnet2_core::PointNetSetAbstraction> sa1_;

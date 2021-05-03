@@ -67,7 +67,6 @@ at::Tensor index_points(at::Tensor points, at::Tensor idx)
       },
       idx.device());
 
-
     for (int i = 0; i < idx_shape[0]; i++) {
       for (int j = 0; j < idx_shape[1]; j++) {
         for (int k = 0; k < idx_shape[2]; k++) {
@@ -86,7 +85,6 @@ at::Tensor farthest_point_sample(at::Tensor input_tensor, int num_samples)
 {
   torch::Device device = input_tensor.device();
   c10::IntArrayRef input_shape = input_tensor.sizes();
-
   c10::IntArrayRef output_shape = {input_shape.front(), num_samples};
 
   //  options for indice tensors
@@ -96,22 +94,17 @@ at::Tensor farthest_point_sample(at::Tensor input_tensor, int num_samples)
     .device(device);
 
   at::Tensor centroids = at::zeros(output_shape, options);
-
   at::Tensor distance =
     at::ones(
     {input_shape[0], input_shape[1]},
     torch::dtype(torch::kFloat32).device(device)).multiply(1e10);
-
   at::Tensor farthest =
     at::randint(0, input_shape[1], {input_shape.front(), }, options);
   at::Tensor batch_indices = at::arange(0, input_shape.front(), options);
 
   for (int i = 0; i < num_samples; i++) {
-
     centroids.index_put_({torch::indexing::Slice(), i}, farthest);
-
     at::Tensor centroid =
-
       input_tensor.index(
       {batch_indices, farthest, torch::indexing::Slice()})
       .view({input_shape.front(), 1, 3});
@@ -119,7 +112,6 @@ at::Tensor farthest_point_sample(at::Tensor input_tensor, int num_samples)
     at::Tensor dist = torch::sum(
       (input_tensor.subtract(centroid))
       .pow(2), -1);
-
     at::Tensor mask = dist < distance;
     distance.index_put_({mask}, dist.index({mask}));
     farthest = std::get<1>(torch::max(distance, -1));

@@ -60,7 +60,7 @@ public:
    * @param points
    * @return torch::Tensor
    */
-  std::pair<at::Tensor, at::Tensor> forward(at::Tensor * xyz, at::Tensor * points);
+  std::pair<at::Tensor, at::Tensor> forward(at::Tensor xyz, at::Tensor points);
 
 protected:
   int64_t npoint_;
@@ -106,8 +106,8 @@ public:
    * @return at::Tensor
    */
   at::Tensor forward(
-    at::Tensor * xyz1, at::Tensor * xyz2,
-    at::Tensor * points1, at::Tensor * points2);
+    at::Tensor xyz1, at::Tensor xyz2,
+    at::Tensor points1, at::Tensor points2);
 
 protected:
   std::vector<torch::nn::Conv1d> mlp_convs_;
