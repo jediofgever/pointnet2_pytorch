@@ -21,13 +21,13 @@ int main(int argc, char const * argv[])
   torch::Device device(cuda_available ? torch::kCUDA : torch::kCPU);
 
   // Set abstraction layers
-  PointNetSetAbstraction sa1(1024, 0.04, 32,
+  PointNetSetAbstraction sa1(1024, 0.025, 32,
     3 + 3, {32, 32, 64}, false);
-  PointNetSetAbstraction sa2(256, 0.08, 32,
+  PointNetSetAbstraction sa2(256, 0.025, 32,
     64 + 3, {64, 64, 128}, false);
-  PointNetSetAbstraction sa3(64, 0.16, 32,
+  PointNetSetAbstraction sa3(64, 0.1, 32,
     128 + 3, {128, 128, 256}, false);
-  PointNetSetAbstraction sa4(16, 0.32, 32,
+  PointNetSetAbstraction sa4(16, 0.2, 32,
     256 + 3, {256, 256, 512}, false);
 
   // Pass a real point cloud to pass through SA and FP stacks of layers

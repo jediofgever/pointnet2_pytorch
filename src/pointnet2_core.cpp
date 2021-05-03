@@ -160,11 +160,9 @@ at::Tensor PointNetFeaturePropagation::forward(
   conv1_->to(new_points.device());
   batch_norm1_->to(new_points.device());
   new_points = torch::nn::functional::relu(batch_norm1_(conv1_(new_points)));
-
   conv2_->to(new_points.device());
   batch_norm2_->to(new_points.device());
   new_points = torch::nn::functional::relu(batch_norm2_(conv2_(new_points)));
-
   if (num_mlp_channel_ == 3) {
     conv3_->to(new_points.device());
     batch_norm3_->to(new_points.device());
