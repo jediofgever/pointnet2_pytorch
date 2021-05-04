@@ -17,7 +17,6 @@
 
 int main()
 {
-
   double downsample_voxel_size = 0.4;
   int batch_size = 1;
   int epochs = 50;
