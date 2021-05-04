@@ -149,7 +149,6 @@ at::Tensor PointNetFeaturePropagation::forward(
   }
   at::Tensor new_points;
   if (points1.sizes().size() > 1) {
-    std::cout << "points1  .. " << points1.sizes() << std::endl;
     points1 = points1.permute({0, 2, 1});
     new_points = torch::cat({points1, interpolated_points}, -1);
   } else {

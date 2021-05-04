@@ -17,15 +17,18 @@
 
 int main()
 {
-  double downsample_voxel_size = 0.4;
-  int batch_size = 1;
+
+  double downsample_voxel_size = 0.0;
+  int batch_size = 8;
   int epochs = 50;
-  int num_point_per_batch = 4096;
-  double learning_rate = 0.001;
+  int num_point_per_batch = 2048;
+  double learning_rate = 0.01;
   bool use_normals_as_feature = false;
+  const size_t learning_rate_decay_frequency = 10;  
+  const double learning_rate_decay_factor = 1.0 / 5.0;  
 
   torch::Device cuda_device = torch::kCUDA;
-  std::string root_dir = "/home/ros2-foxy/pointnet2_pytorch/data";
+  std::string root_dir = "/home/pc/pointnet2_pytorch/data";
   auto net = std::make_shared<pointnet2_sem_seg::PointNet2SemSeg>();
   net->to(cuda_device);
   torch::optim::Adam optimizer(net->parameters(), torch::optim::AdamOptions(learning_rate));
@@ -37,6 +40,8 @@ int main()
   auto dataset_loader = torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(
     std::move(dataset), batch_size);
 
+  auto current_learning_rate = learning_rate;
+
   // Train the precious
   for (int i = 0; i < epochs; i++) {
     // In a for loop you can now use your data.
@@ -44,7 +49,7 @@ int main()
     double overall_batch_accu = 0.0;
     double num_correct_points = 0.0;
     int batch_counter = 0;
-
+   
     for (auto & batch : *dataset_loader) {
       auto xyz = batch.data.to(cuda_device);
       auto labels = batch.target.to(cuda_device);
@@ -53,7 +58,6 @@ int main()
 
       // Permute the channels so that we have  : [B,C,N]
       xyz = xyz.permute({0, 2, 1});
-
       auto net_output = net->forward(xyz);
       at::IntArrayRef output_shape = net_output.first.sizes();
       at::IntArrayRef labels_shape = labels.sizes();
@@ -93,12 +97,22 @@ int main()
       optimizer.step();
       // Output the loss and checkpoint every 100 batches.
       loss_numerical += loss.item<float>();
+
+      std::cout << "Current Batch: " << batch_counter << std::endl;
     }
+
+        // Decay learning rate
+    if ((i + 1) % learning_rate_decay_frequency == 0) {
+        current_learning_rate *= learning_rate_decay_factor;
+        static_cast<torch::optim::AdamOptions&>(optimizer.param_groups().front()
+            .options()).lr(current_learning_rate);
+    }
+
     overall_batch_accu = num_correct_points /
       static_cast<double>(batch_counter * batch_size * num_point_per_batch);
 
     std::cout << "===================================" << std::endl;
-    std::cout << "========== Epoch %d =============== " << i << std::endl;
+    std::cout << "========== Epoch " << i << " ================" << std::endl;
     std::cout << "Loss: " << loss_numerical << std::endl;
     std::cout << "Overall Accuracy: " << overall_batch_accu << std::endl;
   }

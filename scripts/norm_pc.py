@@ -11,7 +11,7 @@ def pc_normalize(pc):
     pc = pc / m
     return pc
 
-pcd = o3d.io.read_point_cloud(os.path.join("../data/train46.pcd"))
+pcd = o3d.io.read_point_cloud(os.path.join("../data/test0.pcd"))
 #pcd = o3d.io.read_point_cloud(os.path.join("/home/ros2-foxy/uneven_ground_dataset/partitioned_data/train2.pcd"))
 
 points = np.asarray(pcd.points).astype(np.float32)
@@ -22,4 +22,4 @@ geometries = []
 geometries.append(pcd)
 o3d.visualization.draw_geometries(geometries, point_show_normal=False)
 
-o3d.io.write_point_cloud("../data/norm_train46.pcd", pcd, write_ascii=False, compressed=False, print_progress=False)
+o3d.io.write_point_cloud("../data/norm_test0.pcd", pcd, write_ascii=False, compressed=False, print_progress=False)

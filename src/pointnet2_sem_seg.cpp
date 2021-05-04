@@ -17,13 +17,13 @@
 namespace pointnet2_sem_seg
 {
 PointNet2SemSeg::PointNet2SemSeg()
-:   sa1_(PointNetSetAbstraction(1024, 0.2, 32,
+:   sa1_(PointNetSetAbstraction(1024, 0.05, 32,
     3 + 3, {32, 32, 64}, false)),
-  sa2_(PointNetSetAbstraction(256, 0.4, 32,
+  sa2_(PointNetSetAbstraction(256, 0.1, 32,
     64 + 3, {64, 64, 128}, false)),
-  sa3_(PointNetSetAbstraction(64, 0.8, 32,
+  sa3_(PointNetSetAbstraction(64, 0.2, 32,
     128 + 3, {128, 128, 256}, false)),
-  sa4_(PointNetSetAbstraction(16, 1.6, 32,
+  sa4_(PointNetSetAbstraction(16, 0.4, 32,
     256 + 3, {256, 256, 512}, false)),
   fp4_(PointNetFeaturePropagation(768, {256, 256})),
   fp3_(PointNetFeaturePropagation(384, {256, 256})),

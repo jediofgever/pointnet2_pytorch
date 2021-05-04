@@ -16,22 +16,34 @@
 
 int main(int argc, char const * argv[])
 {
+  int batch_size = 4;
+  int num_point_per_batch = 2048;
+
   auto cuda_available = torch::cuda::is_available();
   torch::Device device(cuda_available ? torch::kCUDA : torch::kCPU);
 
   // Set abstraction layers
-  PointNetSetAbstraction sa1(1024, 0.025, 32,
+  /*PointNetSetAbstraction sa1(1024, 0.025, 32,
     3 + 3, {32, 32, 64}, false);
   PointNetSetAbstraction sa2(256, 0.025, 32,
     64 + 3, {64, 64, 128}, false);
   PointNetSetAbstraction sa3(64, 0.1, 32,
     128 + 3, {128, 128, 256}, false);
   PointNetSetAbstraction sa4(16, 0.2, 32,
-    256 + 3, {256, 256, 512}, false);
+    256 + 3, {256, 256, 512}, false);*/
+
+    PointNetSetAbstraction sa1(1024, 0.2, 32,
+    3 + 3, {32, 32, 64}, false);
+    PointNetSetAbstraction sa2(256, 0.4, 32,
+      64 + 3, {64, 64, 128}, false);
+    PointNetSetAbstraction sa3(64, 0.8, 32,
+      128 + 3, {128, 128, 256}, false);
+    PointNetSetAbstraction sa4(16, 1.6, 32,
+      256 + 3, {256, 256, 512}, false);
 
   // Pass a real point cloud to pass through SA and FP stacks of layers
   auto tensor_from_cloud = pointnet2_utils::load_pcl_as_torch_tensor(
-    "/home/pc/pointnet2_pytorch/data/norm_train46.pcd", 2048, device);
+    "/home/pc/pointnet2_pytorch/data/train_2.pcd", num_point_per_batch, device);
 
   // Permute the channels so that we have  : [B,C,N]
   tensor_from_cloud = tensor_from_cloud.permute({0, 2, 1});
@@ -40,7 +52,7 @@ int main(int argc, char const * argv[])
 
   // Since the tensor might to large, might nt fit to memory, so slie the first 4 Batches
   at::Tensor sliced_tensor = tensor_from_cloud.index(
-    {toi::Slice(toi::None, 1)});
+    {toi::Slice(toi::None, batch_size)});
 
   at::Tensor input_points = sliced_tensor;
   at::Tensor input_xyz = sliced_tensor.index(
@@ -89,7 +101,7 @@ int main(int argc, char const * argv[])
   merged_cloud += *sa1_cloud;
   merged_cloud += *original_cloud;
 
-  //pcl::io::savePCDFile("../data/sa_pass.pcd", merged_cloud, false);
+  pcl::io::savePCDFile("../data/sa_pass.pcd", merged_cloud, false);
 
   std::cout << "Saved a cloud pass from set abstraction layers to ../data/sa_pass.pcd " <<
     std::endl;
