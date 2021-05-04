@@ -13,11 +13,11 @@
 // limitations under the License.
 
 #include <torch/torch.h>
-#include <filesystem>
+#include <experimental/filesystem>
 #include <pcl/io/pcd_io.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/features/normal_3d.h>
-
+#include <pcl/search/impl/search.hpp>
 
 namespace uneven_ground_dataset
 {

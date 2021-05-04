@@ -14,7 +14,6 @@
 
 #include <pointnet2_pytorch/pointnet2_core.hpp>
 
-
 int main(int argc, char const * argv[])
 {
   auto cuda_available = torch::cuda::is_available();
@@ -32,7 +31,7 @@ int main(int argc, char const * argv[])
 
   // Pass a real point cloud to pass through SA and FP stacks of layers
   auto tensor_from_cloud = pointnet2_utils::load_pcl_as_torch_tensor(
-    "/home/ros2-foxy/pointnet2_pytorch/data/norm_train46.pcd", 2048, device);
+    "/home/pc/pointnet2_pytorch/data/norm_train46.pcd", 2048, device);
 
   // Permute the channels so that we have  : [B,C,N]
   tensor_from_cloud = tensor_from_cloud.permute({0, 2, 1});
@@ -84,8 +83,13 @@ int main(int argc, char const * argv[])
   pointnet2_utils::torch_tensor_to_pcl_cloud(
     &sa4_xyz, sa4_cloud, std::vector<double>({0.0, 255, 255}));
 
-  auto merged_cloud = *sa4_cloud + *sa3_cloud + *sa2_cloud + *sa1_cloud + *original_cloud;
-  pcl::io::savePCDFile("../data/sa_pass.pcd", merged_cloud, false);
+  pcl::PointCloud<pcl::PointXYZRGB> merged_cloud = *sa4_cloud;
+  merged_cloud += *sa3_cloud;
+  merged_cloud += *sa2_cloud;
+  merged_cloud += *sa1_cloud;
+  merged_cloud += *original_cloud;
+
+  //pcl::io::savePCDFile("../data/sa_pass.pcd", merged_cloud, false);
 
   std::cout << "Saved a cloud pass from set abstraction layers to ../data/sa_pass.pcd " <<
     std::endl;
@@ -122,10 +126,13 @@ int main(int argc, char const * argv[])
   pointnet2_utils::torch_tensor_to_pcl_cloud(
     &final_layer, final_layer_cloud, std::vector<double>({100.0, 100, 0}));
 
-  auto fp_merged_cloud = *final_layer_cloud + *fp2_cloud + *fp3_cloud + *fp4_cloud;
+  pcl::PointCloud<pcl::PointXYZRGB> fp_merged_cloud = *final_layer_cloud;
+  fp_merged_cloud += *fp2_cloud;
+  fp_merged_cloud += *fp3_cloud;
+  fp_merged_cloud += *fp4_cloud;
   pcl::io::savePCDFile("../data/fp_pass.pcd", fp_merged_cloud, false);
 
-  std::cout << "Saved a cloud pass from set abstraction layers to ../data/sa_pass.pcd " <<
+  std::cout << "Saved a cloud pass from set abstraction layers to ../data/fp_pass.pcd " <<
     std::endl;
 
   auto conv1 = torch::nn::Conv1d(torch::nn::Conv1dOptions(128, 128, 1));

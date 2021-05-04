@@ -14,6 +14,10 @@
 
 #include <pointnet2_pytorch/pointnet2_utils.hpp>
 
+#include <pcl/io/io.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/io/pcd_grabber.h>
+
 /**
  * @brief TODO
  *

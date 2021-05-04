@@ -14,7 +14,6 @@
 
 #include <pointnet2_pytorch/pointnet2_utils.hpp>
 
-
 int main()
 {
   // check if cuda is there
@@ -28,14 +27,13 @@ int main()
   int kMAX_N_POINTS_IN_RADIUS = 8;
   double kRADIUS = 0.04;
 
-
   c10::IntArrayRef test_tensor_shape = {kB, kN, kC};
   torch::Device cuda_device = torch::kCUDA;
   //at::Tensor test_tensor = at::rand(test_tensor_shape, cuda_device);
 
   // Pass a real point cloud to pass through SA and FP stacks of layers
   auto test_tensor = pointnet2_utils::load_pcl_as_torch_tensor(
-    "/home/ros2-foxy/pointnet2_pytorch/data/norm_train46.pcd", 2048, cuda_device);
+    "/home/pc/pointnet2_pytorch/data/norm_train46.pcd", 2048, cuda_device);
 
   // Since the tensor might to large, might nt fit to memory, so slie the first 4 Batches
   test_tensor = test_tensor.index(
@@ -89,8 +87,11 @@ int main()
     &new_xyz_and_points.first, sampled_and_grouped_cloud,
     std::vector<double>({0.0, 0, 255.0}));
 
-  auto merged_cloud = *fps_sampled_cloud + *sampled_and_grouped_cloud + *full_cloud;
-  pcl::io::savePCDFile("../data/rand.pcd", merged_cloud, false);
+  pcl::PointCloud<pcl::PointXYZRGB> merged_cloud = *fps_sampled_cloud;
+  merged_cloud += *sampled_and_grouped_cloud;
+  merged_cloud += *full_cloud;
+
+  //pcl::io::savePCDFile("../data/rand.pcd", merged_cloud, false);
 
   std::cout << "Pointnet2 utils test Successful." << std::endl;
   return EXIT_SUCCESS;

@@ -27,7 +27,7 @@ UnevenGroudDataset::UnevenGroudDataset(
   use_normals_as_feature_ = use_normals_as_feature;
 
   std::cout << "given root directory:" << root_dir_ << std::endl;
-  for (const auto & entry : std::filesystem::directory_iterator(root_dir_)) {
+  for (auto & entry : std::experimental::filesystem::directory_iterator(root_dir_)) {
     std::cout << "processing: " << entry.path() << std::endl;
     filename_vector_.push_back(entry.path());
   }

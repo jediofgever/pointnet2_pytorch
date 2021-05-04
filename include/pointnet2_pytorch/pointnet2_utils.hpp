@@ -15,9 +15,12 @@
 #include <vector>
 #include <torch/torch.h>
 #include <torch/cuda.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/visualization/cloud_viewer.h>
 #include <iostream>
+
+#include <pcl/io/io.h>
+#include <pcl/io/pcd_io.h>
+
+
 
 namespace pointnet2_utils
 {
