@@ -91,7 +91,7 @@ int main()
   merged_cloud += *sampled_and_grouped_cloud;
   merged_cloud += *full_cloud;
 
-  //pcl::io::savePCDFile("../data/rand.pcd", merged_cloud, false);
+  pcl::io::savePCDFile("../data/rand.pcd", merged_cloud, false);
 
   std::cout << "Pointnet2 utils test Successful." << std::endl;
   return EXIT_SUCCESS;

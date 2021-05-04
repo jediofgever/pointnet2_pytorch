@@ -15,7 +15,6 @@ find_package(Torch REQUIRED)
 find_package(CUDA REQUIRED)
 find_package(CUDNN REQUIRED)
 
-
 include_directories(
     include
     ${PCL_INCLUDE_DIRS}
