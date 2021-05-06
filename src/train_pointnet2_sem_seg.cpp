@@ -61,7 +61,6 @@ int main()
 
   auto current_learning_rate = learning_rate;
 
-
   // Train the precious
   for (int i = 0; i < kEPOCHS; i++) {
     // In a for loop you can now use your data.
@@ -138,14 +137,19 @@ int main()
 
     if (loss_numerical < best_loss)
     {
-       best_loss = loss_numerical;
+      best_loss = loss_numerical;
       std::cout << "Found Best Loss at epoch: " << i << std::endl;
       std::cout << "Saving model and optimizer..." << std::endl;
-      torch::save(net,"log/best_loss_model.pt");
-      torch::save(optimizer, "log/best_loss_model.pt");
+      try
+      {
+      torch::save(net,"/home/pc/pointnet2_pytorch/log/best_loss_model.pt");
+      torch::save(optimizer, "/home/pc/pointnet2_pytorch/log/best_optim_model.pt");      }
+      catch(const std::exception& e)
+      {
+        std::cout << "Failed to save model and optimizer..." << std::endl;
+        std::cerr << e.what() << '\n';
+      }
     }
-    
-
   }
   std::cout << "Pointnet2 semantic segmentation training Successful." << std::endl;
   std::cout << "Beginning Testing." << std::endl;
