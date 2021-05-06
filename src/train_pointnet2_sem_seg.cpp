@@ -17,19 +17,19 @@
 
 int main()
 {
-  // inform whther CUDA is there
+  // inform whether CUDA is there
   pointnet2_utils::check_avail_device();
 
   // CONSTS
   const double kDOWNSAMPLE_VOXEL_SIZE = 0.0;
-  const int kBATCH_SIZE = 4;
-  const int kEPOCHS = 4;
+  const int kBATCH_SIZE = 8;
+  const int kEPOCHS = 32;
   int kN = 2048;
   bool kUSE_NORMALS = true;
 
   // use dynamic LR
   double learning_rate = 0.01;
-  const size_t learning_rate_decay_frequency = 2;
+  const size_t learning_rate_decay_frequency = 8;
   const double learning_rate_decay_factor = 1.0 / 5.0;
 
   torch::Device cuda_device = torch::kCUDA;
@@ -60,6 +60,7 @@ int main()
     .betas({0.9, 0.999}));
 
   auto current_learning_rate = learning_rate;
+
 
   // Train the precious
   for (int i = 0; i < kEPOCHS; i++) {
