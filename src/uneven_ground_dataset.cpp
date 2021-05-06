@@ -71,7 +71,7 @@ std::pair<at::Tensor, at::Tensor> UnevenGroudDataset::load_pcl_as_torch_tensor(
     pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> norm_est;
     pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZRGB>());
     norm_est.setSearchMethod(tree);
-    norm_est.setRadiusSearch(1.2);
+    norm_est.setRadiusSearch(0.1);
     norm_est.setInputCloud(cloud);
     norm_est.setSearchSurface(cloud);
     norm_est.compute(*normals_out);

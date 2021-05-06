@@ -31,7 +31,11 @@ int main()
   std::string root_dir = "/home/pc/pointnet2_pytorch/data";
   auto net = std::make_shared<pointnet2_sem_seg::PointNet2SemSeg>();
   net->to(cuda_device);
-  torch::optim::Adam optimizer(net->parameters(), torch::optim::AdamOptions(learning_rate));
+
+  torch::optim::Adam optimizer(net->parameters(), torch::optim::AdamOptions(
+      learning_rate)
+      .weight_decay(0.0001)
+      .betas({0.9, 0.999}));
 
   auto dataset = uneven_ground_dataset::UnevenGroudDataset(
     root_dir, cuda_device,
@@ -55,7 +59,6 @@ int main()
     for (auto & batch : *dataset_loader) {
       auto xyz = batch.data.to(cuda_device);
       auto labels = batch.target.to(cuda_device);
-      xyz = xyz.to(torch::kF32);
       labels = labels.to(torch::kLong);
 
       // Permute the channels so that we have  : [B,C,N]
@@ -64,7 +67,6 @@ int main()
       at::IntArrayRef output_shape = net_output.first.sizes();
       at::IntArrayRef labels_shape = labels.sizes();
       
- 
 
       auto predicted_label = torch::max(net_output.first, 2);
  
@@ -88,7 +90,6 @@ int main()
           {
             point.r = 255;
           }
-
           segmented_cloud->points.push_back(point);
         }
       }
