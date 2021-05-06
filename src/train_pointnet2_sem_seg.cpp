@@ -22,14 +22,14 @@ int main()
 
   // CONSTS
   const double kDOWNSAMPLE_VOXEL_SIZE = 0.0;
-  const int kBATCH_SIZE = 1;
+  const int kBATCH_SIZE = 4;
   const int kEPOCHS = 4;
   int kN = 2048;
   bool kUSE_NORMALS = true;
 
   // use dynamic LR
   double learning_rate = 0.01;
-  const size_t learning_rate_decay_frequency = 10;
+  const size_t learning_rate_decay_frequency = 2;
   const double learning_rate_decay_factor = 1.0 / 5.0;
 
   torch::Device cuda_device = torch::kCUDA;

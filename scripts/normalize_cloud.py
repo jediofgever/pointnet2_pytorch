@@ -11,7 +11,7 @@ def pc_normalize(pc):
     pc = pc / m
     return pc
 
-pcd = o3d.io.read_point_cloud(os.path.join("../data/train_2.pcd"))
+pcd = o3d.io.read_point_cloud(os.path.join("../data/train/train1.pcd"))
 
 points = np.asarray(pcd.points).astype(np.float32)
 points = pc_normalize(points)
@@ -21,4 +21,4 @@ geometries = []
 geometries.append(pcd)
 o3d.visualization.draw_geometries(geometries, point_show_normal=False)
 
-o3d.io.write_point_cloud("../data/norm_train_2.pcd", pcd, write_ascii=False, compressed=False, print_progress=False)
+o3d.io.write_point_cloud("../data/train/norm_train1.pcd", pcd, write_ascii=False, compressed=False, print_progress=False)
