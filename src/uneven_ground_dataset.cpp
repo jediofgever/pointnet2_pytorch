@@ -33,7 +33,6 @@ UnevenGroudDataset::UnevenGroudDataset(
   }
 
   int index = 0;
-
   for (auto && crr_file : filename_vector_) {
     std::pair<at::Tensor, at::Tensor> xyz_labels_pair = load_pcl_as_torch_tensor(
       crr_file, num_point_per_batch_, device);
