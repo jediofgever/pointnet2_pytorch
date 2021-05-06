@@ -71,17 +71,18 @@ std::pair<at::Tensor, at::Tensor> UnevenGroudDataset::load_pcl_as_torch_tensor(
     pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> norm_est;
     pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZRGB>());
     norm_est.setSearchMethod(tree);
-    norm_est.setRadiusSearch(0.1);
+    norm_est.setRadiusSearch(1.2);
     norm_est.setInputCloud(cloud);
     norm_est.setSearchSurface(cloud);
     norm_est.compute(*normals_out);
+    norm_est.setKSearch(20);
   }
 
   if (downsample_leaf_size_ > 0.0) {
     std::cout << "Gonna downsample cloud with leaf size of  " << downsample_leaf_size_ << std::endl;
     *cloud = downsampleInputCloud(cloud, downsample_leaf_size_);
+    std::cout << "Cloud has " << cloud->points.size() << " points after downsample" << std::endl;
   }
-  std::cout << "Cloud has " << cloud->points.size() << " points after downsample" << std::endl;
 
   // Convert cloud to a tensor with shape of [B,N,C]
   // Determine batches

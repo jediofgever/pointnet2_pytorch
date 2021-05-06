@@ -68,7 +68,11 @@
         "bit": "cpp",
         "__config": "cpp",
         "__nullptr": "cpp",
-        "filesystem": "cpp"
+        "filesystem": "cpp",
+        "csignal": "cpp",
+        "forward_list": "cpp",
+        "cfenv": "cpp",
+        "valarray": "cpp"
     },
     "ros.distro": "foxy"
 }
