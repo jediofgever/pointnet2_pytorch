@@ -68,6 +68,9 @@ int main()
     double overall_batch_accu = 0.0;
     double num_correct_points = 0.0;
     int total_samples_in_batch = 0;
+    int batch_counter = 0;
+
+    double best_loss = INFINITY;
 
     for (auto & batch : *train_dataset_loader) {
 
@@ -113,6 +116,8 @@ int main()
       optimizer.step();
       // Output the loss and checkpoint every 100 batches.
       loss_numerical += loss.item<float>();
+      batch_counter++;
+      std::cout << "Curr Batch" << batch_counter << std::endl;
     }
 
     // Decay learning rate
@@ -126,9 +131,19 @@ int main()
       static_cast<double>(total_samples_in_batch * kN);
 
     std::cout << "===================================" << std::endl;
-    std::cout << "========== Epoch %d =============== " << i << std::endl;
+    std::cout << "========== Epoch: "<< i << "==============="  << std::endl;
     std::cout << "Loss: " << loss_numerical << std::endl;
     std::cout << "Overall Accuracy: " << overall_batch_accu << std::endl;
+
+    if (loss_numerical < best_loss)
+    {
+       best_loss = loss_numerical;
+      std::cout << "Found Best Loss at epoch: " << i << std::endl;
+      std::cout << "Saving model and optimizer..." << std::endl;
+      torch::save(net,"log/best_loss_model.pt");
+      torch::save(optimizer, "log/best_loss_model.pt");
+    }
+    
 
   }
   std::cout << "Pointnet2 semantic segmentation training Successful." << std::endl;
@@ -189,7 +204,7 @@ int main()
     static_cast<double>(total_samples_in_batch * kN);
 
   std::cout << "===================================" << std::endl;
-  std::cout << "Testing finished!\n";
+  std::cout << "Testing finished!" << std::endl;;
   std::cout << "Loss: " << loss_numerical << std::endl;
   std::cout << "Overall Accuracy: " << overall_batch_accu << std::endl;
 
