@@ -21,18 +21,17 @@ include_directories(
     ${Torch_INCLUDE_DIRS}
     ${CUDA_INCLUDE_DIRS})
 
-add_executable(test_pointnet2_utils src/test_pointnet2_utils.cpp
+add_executable(test_pointnet2_utils test/test_pointnet2_utils.cpp
                                     src/pointnet2_utils.cpp)
 target_link_libraries(test_pointnet2_utils ${PCL_LIBRARIES} ${TORCH_LIBRARIES})
 
 
-add_executable(test_pointnet2_core_modules src/test_pointnet2_core.cpp
-                                 src/pointnet2_core.cpp
-                                 src/pointnet2_utils.cpp)
+add_executable(test_pointnet2_core_modules      test/test_pointnet2_core.cpp
+                                                src/pointnet2_core.cpp
+                                                src/pointnet2_utils.cpp)
 target_link_libraries(test_pointnet2_core_modules ${PCL_LIBRARIES} ${TORCH_LIBRARIES})
 
-
-add_executable(train_pointnet2_sem_seg  src/train_pointnet2_sem_seg.cpp
+add_executable(train_pointnet2_sem_seg src/train_pointnet2_sem_seg.cpp
                                        src/pointnet2_sem_seg.cpp
                                        src/pointnet2_core.cpp
                                        src/pointnet2_utils.cpp

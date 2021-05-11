@@ -205,7 +205,6 @@ int main()
   const double kCELL_RADIUS = 0.015;
   const double kMAX_ALLOWED_TILT = 25.0;
 
-
   // LOAD SEGMENTED CLOUD FIRST AND FOREMOST
   std::string segmneted_pcl_filename = "../data/segmented_cloud.pcd";
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmented_pcl(
