@@ -39,6 +39,7 @@ add_executable(train_pointnet2_sem_seg src/train_pointnet2_sem_seg.cpp
 target_link_libraries(train_pointnet2_sem_seg ${PCL_LIBRARIES} ${TORCH_LIBRARIES} stdc++fs)
 
 add_executable(regress_costs  src/regress_costs.cpp
+                              src/cost_regression_utils.cpp
                               src/pointnet2_utils.cpp)
 target_link_libraries(regress_costs ${PCL_LIBRARIES} ${TORCH_LIBRARIES})
 
