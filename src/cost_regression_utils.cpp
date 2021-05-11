@@ -187,4 +187,25 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr set_cloud_color(
   return new_colored_cloud;
 }
 
+std::vector<double> absolute_rpy_from_plane(pcl::ModelCoefficients plane_model)
+{
+  std::vector<double> absolute_rpy({0.0, 0.0, 0.0});
+  const double kRAD2DEG = 180.0 / M_PI;
+
+  auto vector_magnitude =
+    std::sqrt(
+    std::pow(plane_model.values[0], 2) +
+    std::pow(plane_model.values[1], 2) +
+    std::pow(plane_model.values[2], 2));
+  auto roll = std::abs(plane_model.values[0] / vector_magnitude * kRAD2DEG);
+  auto pitch = std::abs(plane_model.values[1] / vector_magnitude * kRAD2DEG);
+  auto yaw = std::abs(plane_model.values[2] / vector_magnitude * kRAD2DEG);
+
+  absolute_rpy[0] = roll;
+  absolute_rpy[1] = pitch;
+  absolute_rpy[2] = yaw;
+  return absolute_rpy;
+}
+
+
 }  // namespace cost_regression_utils

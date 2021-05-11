@@ -17,8 +17,9 @@
 int main()
 {
   // PARAMETERS
-  const double kCELL_RADIUS = 0.015;
-  const double kMAX_ALLOWED_TILT = 25.0;
+  double CELL_RADIUS = 0.015;
+  double MAX_ALLOWED_TILT = 25.0;
+  const double kMAX_COLOR_RANGE = 255.0;
 
   // LOAD SEGMENTED CLOUD FIRST AND FOREMOST
   std::string segmneted_pcl_filename = "../data/segmented_cloud.pcd";
@@ -53,41 +54,32 @@ int main()
   // UNIFORMLY SAMPLE NODES ON TOP OF TRAVERSABLE CLOUD
   auto uniformly_sampled_nodes = cost_regression_utils::uniformly_sample_cloud(
     pure_traversable_pcl,
-    kCELL_RADIUS);
+    CELL_RADIUS);
 
   std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> decomposed_cells =
     cost_regression_utils::decompose_traversability_cloud(
-    pure_traversable_pcl, uniformly_sampled_nodes, kCELL_RADIUS);
+    pure_traversable_pcl, uniformly_sampled_nodes, CELL_RADIUS);
 
   pcl::PointCloud<pcl::PointXYZRGB> cld;
   for (auto && i : decomposed_cells) {
+
     auto plane_model = cost_regression_utils::fit_plane_to_cloud(i);
-    auto vector_magnitude =
-      std::sqrt(
-      std::pow(plane_model.values[0], 2) +
-      std::pow(plane_model.values[1], 2) +
-      std::pow(plane_model.values[2], 2));
+    auto rpy_from_plane_model = cost_regression_utils::absolute_rpy_from_plane(plane_model);
 
-    auto pitch = std::abs(plane_model.values[0] / vector_magnitude * 180.0 / M_PI);
-    auto roll = std::abs(plane_model.values[1] / vector_magnitude * 180.0 / M_PI);
-    auto yaw = std::abs(plane_model.values[2] / vector_magnitude * 180.0 / M_PI);
-
-    pitch = pitch / kMAX_ALLOWED_TILT * 255.0;
-    roll = roll / kMAX_ALLOWED_TILT * 255.0;
-    yaw = yaw / kMAX_ALLOWED_TILT * 255.0;
+    auto pitch = rpy_from_plane_model[0] / MAX_ALLOWED_TILT * kMAX_COLOR_RANGE;
+    auto roll = rpy_from_plane_model[1] / MAX_ALLOWED_TILT * kMAX_COLOR_RANGE;
+    auto yaw = rpy_from_plane_model[2] / MAX_ALLOWED_TILT * kMAX_COLOR_RANGE;
 
     auto plane_fitted_cell =
       cost_regression_utils::set_cloud_color(
       i, std::vector<double>(
-        {std::max(pitch, roll),
+        {0 + std::max(pitch, roll),
           255 - std::max(pitch, roll),
-          std::max(pitch, roll)}));
+          255 - std::max(pitch, roll)}));
     cld += *plane_fitted_cell;
   }
   pcl::io::savePCDFile("../data/decomposed_traversability_cloud.pcd", cld, false);
-
   std::cout << "===================================" << std::endl;
   std::cout << "Testing finished!" << std::endl;
-
   return EXIT_SUCCESS;
 }

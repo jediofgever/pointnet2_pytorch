@@ -45,4 +45,6 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr set_cloud_color(
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,
   std::vector<double> colors);
 
+std::vector<double> absolute_rpy_from_plane(pcl::ModelCoefficients plane_model);
+
 }  // namespace pointnet2_utils
