@@ -9,7 +9,7 @@
         "/usr/include/**",
         "/opt/libtorch/include/**",
         "/usr/local/cuda/include/**",
-        "/home/pc/pointnet2_pytorch/include/**"
+        "/home/ros2-foxy/pointnet2_pytorch/include/**"
       ],
       "name": "ROS"
     }

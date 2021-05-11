@@ -254,12 +254,35 @@ at::Tensor load_pcl_as_torch_tensor(
   }
   // Convert cloud to a tensor with shape of [B,N,C]
   // Determine batches
-  int B = cloud.points.size() % N;
+  int B = std::floor(cloud.points.size() / N);
   at::Tensor cloud_as_tensor = torch::zeros({B, N, 3}, device);
   for (int i = 0; i < B; i++) {
     for (int j = 0; j < N; j++) {
       if (i * N + j < cloud.points.size()) {
         auto crr_point = cloud.points[i * N + j];
+        auto point_tensor = at::zeros({1, 3}, device);
+        point_tensor.index_put_({0, 0}, crr_point.x);
+        point_tensor.index_put_({0, 1}, crr_point.y);
+        point_tensor.index_put_({0, 2}, crr_point.z);
+        cloud_as_tensor.index_put_(
+          {i, j}, point_tensor);
+      }
+    }
+  }
+  return cloud_as_tensor;
+}
+
+at::Tensor load_pcl_as_torch_tensor(
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int N, torch::Device device)
+{
+  // Convert cloud to a tensor with shape of [B,N,C]
+  // Determine batches
+  int B = std::floor(cloud->points.size() / N);
+  at::Tensor cloud_as_tensor = torch::zeros({B, N, 3}, device);
+  for (int i = 0; i < B; i++) {
+    for (int j = 0; j < N; j++) {
+      if (i * N + j < cloud->points.size()) {
+        auto crr_point = cloud->points[i * N + j];
         auto point_tensor = at::zeros({1, 3}, device);
         point_tensor.index_put_({0, 0}, crr_point.x);
         point_tensor.index_put_({0, 1}, crr_point.y);

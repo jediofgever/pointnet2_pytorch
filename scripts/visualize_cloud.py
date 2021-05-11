@@ -2,7 +2,9 @@ import open3d as o3d
 import numpy as np
 import os
 
-pcd = o3d.io.read_point_cloud(os.path.join("../data/segmented_cloud.pcd"))
+pcd = o3d.io.read_point_cloud(os.path.join("../data/decomposed_traversability_cloud.pcd"))
+
+print(len(np.asarray(pcd.points)))
 
 geometries = []
 geometries.append(pcd)

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.18)
 project(pointnet2_pytorch)
 
 # specify the C++ standard
@@ -39,13 +39,16 @@ add_executable(train_pointnet2_sem_seg  src/train_pointnet2_sem_seg.cpp
                                        src/uneven_ground_dataset.cpp)
 target_link_libraries(train_pointnet2_sem_seg ${PCL_LIBRARIES} ${TORCH_LIBRARIES} stdc++fs)
 
+add_executable(regress_costs  src/regress_costs.cpp
+                              src/pointnet2_utils.cpp)
+target_link_libraries(regress_costs ${PCL_LIBRARIES} ${TORCH_LIBRARIES})
 
-install(TARGETS test_pointnet2_utils test_pointnet2_core_modules train_pointnet2_sem_seg
+install(TARGETS test_pointnet2_utils test_pointnet2_core_modules train_pointnet2_sem_seg regress_costs
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin)
 
-install(TARGETS test_pointnet2_utils test_pointnet2_core_modules train_pointnet2_sem_seg
+install(TARGETS test_pointnet2_utils test_pointnet2_core_modules train_pointnet2_sem_seg regress_costs
         RUNTIME DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY include/
