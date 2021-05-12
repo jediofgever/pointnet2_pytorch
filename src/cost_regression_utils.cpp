@@ -109,7 +109,8 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr uniformly_sample_cloud(
   return uniformly_sampled_cloud;
 }
 
-std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> decompose_traversability_cloud(
+std::vector<std::pair<pcl::PointXYZRGB,
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr>> decompose_traversability_cloud(
   const pcl::PointCloud<pcl::PointXYZRGB>::Ptr pure_traversable_pcl,
   const pcl::PointCloud<pcl::PointXYZRGB>::Ptr uniformly_sampled_nodes,
   double radius)
@@ -119,7 +120,10 @@ std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> decompose_traversability_clo
   std::vector<float> pointRadiusSquaredDistance;
   pcl::KdTreeFLANN<pcl::PointXYZRGB> kdtree;
   kdtree.setInputCloud(pure_traversable_pcl);
-  std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> decomposed_cells;
+
+  std::vector<std::pair<pcl::PointXYZRGB,
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr>> decomposed_cells;
+
   for (auto && searchPoint : uniformly_sampled_nodes->points) {
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr points_within_this_cell(
       new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -137,7 +141,8 @@ std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> decompose_traversability_clo
     }
     points_within_this_cell->height = 1;
     points_within_this_cell->width = points_within_this_cell->points.size();
-    decomposed_cells.push_back(points_within_this_cell);
+
+    decomposed_cells.push_back(std::make_pair(searchPoint, points_within_this_cell));
   }
   return decomposed_cells;
 }
@@ -207,5 +212,25 @@ std::vector<double> absolute_rpy_from_plane(pcl::ModelCoefficients plane_model)
   return absolute_rpy;
 }
 
+double average_point_deviation_from_plane(
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,
+  pcl::ModelCoefficients plane_model)
+{
+  double total_dist = 0.0;
+  for (auto && i : cloud->points) {
+    double curr_point_dist_to_plane = std::abs(
+      plane_model.values[0] * i.x +
+      plane_model.values[1] * i.y +
+      plane_model.values[2] * i.z + plane_model.values[3]) /
+      std::sqrt(
+      std::pow(plane_model.values[0], 2) +
+      std::pow(plane_model.values[1], 2) +
+      std::pow(plane_model.values[2], 2));
+    total_dist += curr_point_dist_to_plane;
+  }
+  double average_point_deviation_from_plane = total_dist /
+    static_cast<double>(cloud->points.size());
+  return average_point_deviation_from_plane;
+}
 
 }  // namespace cost_regression_utils

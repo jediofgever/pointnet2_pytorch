@@ -13,15 +13,19 @@
 // limitations under the License.
 
 #include <pointnet2_pytorch/cost_regression_utils.hpp>
+#include <pcl/common/centroid.h>
+
 
 int main()
 {
   // PARAMETERS
-  double CELL_RADIUS = 0.015;
-  double MAX_ALLOWED_TILT = 25.0;
+  double CELL_RADIUS = 0.0175;
+  double MAX_ALLOWED_TILT = 25.0; // degrees
+  double MAX_ALLOWED_POINT_DEVIATION = 0.005;
+  double NODE_ELEVATION_DISTANCE = 0.005;
   const double kMAX_COLOR_RANGE = 255.0;
 
-  // LOAD SEGMENTED CLOUD FIRST AND FOREMOST
+  // LOAD SEGMENTED CLOUD FIRST
   std::string segmneted_pcl_filename = "../data/segmented_cloud.pcd";
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmented_pcl(
     new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -56,28 +60,55 @@ int main()
     pure_traversable_pcl,
     CELL_RADIUS);
 
-  std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> decomposed_cells =
+  // THIS IS BASICALLY VECTOR OF CLOUD SEGMENTS, EACH SEGMENT INCLUDES POINTS REPRESENTING CELL,
+  // THE FIRST ELEMNET OF PAIR IS CENTROID WHILE SECOND IS THE POINTCLOUD ITSELF
+  std::vector<std::pair<pcl::PointXYZRGB,
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr>> decomposed_cells =
     cost_regression_utils::decompose_traversability_cloud(
-    pure_traversable_pcl, uniformly_sampled_nodes, CELL_RADIUS);
+    pure_traversable_pcl,
+    uniformly_sampled_nodes, CELL_RADIUS);
 
   pcl::PointCloud<pcl::PointXYZRGB> cld;
+  pcl::PointCloud<pcl::PointXYZRGB> elevated_nodes_cloud;
   for (auto && i : decomposed_cells) {
 
-    auto plane_model = cost_regression_utils::fit_plane_to_cloud(i);
+    auto plane_model = cost_regression_utils::fit_plane_to_cloud(i.second);
     auto rpy_from_plane_model = cost_regression_utils::absolute_rpy_from_plane(plane_model);
-
     auto pitch = rpy_from_plane_model[0] / MAX_ALLOWED_TILT * kMAX_COLOR_RANGE;
     auto roll = rpy_from_plane_model[1] / MAX_ALLOWED_TILT * kMAX_COLOR_RANGE;
     auto yaw = rpy_from_plane_model[2] / MAX_ALLOWED_TILT * kMAX_COLOR_RANGE;
 
+    double average_point_deviation_from_plane =
+      cost_regression_utils::average_point_deviation_from_plane(i.second, plane_model);
+
+    double deviation_of_points_cost = average_point_deviation_from_plane /
+      MAX_ALLOWED_POINT_DEVIATION *
+      kMAX_COLOR_RANGE;
+    double slope_cost = std::max(pitch, roll);
+
+    double total_cost = 0.6 * slope_cost + 0.4 * deviation_of_points_cost;
+
     auto plane_fitted_cell =
       cost_regression_utils::set_cloud_color(
-      i, std::vector<double>(
-        {0 + std::max(pitch, roll),
-          255 - std::max(pitch, roll),
-          255 - std::max(pitch, roll)}));
+      i.second, std::vector<double>(
+    {
+      total_cost,
+      kMAX_COLOR_RANGE - total_cost,
+      0}));
+
+    pcl::PointXYZRGB elevated_node;
+    elevated_node.x = i.first.x + NODE_ELEVATION_DISTANCE * plane_model.values[0];
+    elevated_node.y = i.first.y + NODE_ELEVATION_DISTANCE * plane_model.values[1];
+    elevated_node.z = i.first.z + NODE_ELEVATION_DISTANCE * plane_model.values[2];
+    elevated_node.b = kMAX_COLOR_RANGE;
+    elevated_nodes_cloud.points.push_back(elevated_node);
+
     cld += *plane_fitted_cell;
   }
+  elevated_nodes_cloud.height = 1;
+  elevated_nodes_cloud.width = elevated_nodes_cloud.points.size();
+  cld += elevated_nodes_cloud;
+
   pcl::io::savePCDFile("../data/decomposed_traversability_cloud.pcd", cld, false);
   std::cout << "===================================" << std::endl;
   std::cout << "Testing finished!" << std::endl;

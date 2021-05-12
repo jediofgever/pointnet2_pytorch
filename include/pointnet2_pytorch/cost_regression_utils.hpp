@@ -34,7 +34,8 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr remove_non_traversable_points(
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr uniformly_sample_cloud(
   const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double radius);
 
-std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> decompose_traversability_cloud(
+std::vector<std::pair<pcl::PointXYZRGB,
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr>> decompose_traversability_cloud(
   const pcl::PointCloud<pcl::PointXYZRGB>::Ptr pure_traversable_pcl,
   const pcl::PointCloud<pcl::PointXYZRGB>::Ptr uniformly_sampled_nodes,
   double radius);
@@ -46,5 +47,9 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr set_cloud_color(
   std::vector<double> colors);
 
 std::vector<double> absolute_rpy_from_plane(pcl::ModelCoefficients plane_model);
+
+double average_point_deviation_from_plane(
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,
+  pcl::ModelCoefficients plane_model);
 
 }  // namespace pointnet2_utils
