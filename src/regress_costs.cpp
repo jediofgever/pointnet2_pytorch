@@ -20,8 +20,8 @@ int main()
   // PARAMETERS
   double CELL_RADIUS = 0.015;
   double MAX_ALLOWED_TILT = 25.0; // degrees
-  double MAX_ALLOWED_POINT_DEVIATION = 0.004;
-  double MAX_ALLOWED_ENERGY_GAP = 0.02;
+  double MAX_ALLOWED_POINT_DEVIATION = 0.008;
+  double MAX_ALLOWED_ENERGY_GAP = 0.03;
   double NODE_ELEVATION_DISTANCE = 0.005;
   const double kMAX_COLOR_RANGE = 255.0;
 
@@ -74,9 +74,9 @@ int main()
 
     auto plane_model = cost_regression_utils::fit_plane_to_cloud(i.second);
     auto rpy_from_plane_model = cost_regression_utils::absolute_rpy_from_plane(plane_model);
-    auto pitch = rpy_from_plane_model[0] / MAX_ALLOWED_TILT * kMAX_COLOR_RANGE;
-    auto roll = rpy_from_plane_model[1] / MAX_ALLOWED_TILT * kMAX_COLOR_RANGE;
-    auto yaw = rpy_from_plane_model[2] / MAX_ALLOWED_TILT * kMAX_COLOR_RANGE;
+    auto pitch = rpy_from_plane_model[0];
+    auto roll = rpy_from_plane_model[1];
+    auto yaw = rpy_from_plane_model[2];
 
     double average_point_deviation_from_plane =
       cost_regression_utils::average_point_deviation_from_plane(i.second, plane_model);
@@ -85,14 +85,13 @@ int main()
       cost_regression_utils::max_energy_gap_in_cloud(i.second, 0.1, 1.0);
 
     double deviation_of_points_cost = average_point_deviation_from_plane /
-      MAX_ALLOWED_POINT_DEVIATION *
-      kMAX_COLOR_RANGE;
-    double energy_gap_cost = max_energy_gap_in_cloud / MAX_ALLOWED_ENERGY_GAP *
-      kMAX_COLOR_RANGE;
+      MAX_ALLOWED_POINT_DEVIATION * kMAX_COLOR_RANGE;
+    double energy_gap_cost = max_energy_gap_in_cloud /
+      MAX_ALLOWED_ENERGY_GAP * kMAX_COLOR_RANGE;
 
-    double slope_cost = std::max(pitch, roll);
+    double slope_cost = std::max(pitch, roll) / MAX_ALLOWED_TILT * kMAX_COLOR_RANGE;
 
-    double total_cost = 0.0 * slope_cost + 1.0 * deviation_of_points_cost + 0.0 * energy_gap_cost;
+    double total_cost = 0.8 * slope_cost + 0.1 * deviation_of_points_cost + 0.1 * energy_gap_cost;
 
     auto plane_fitted_cell =
       cost_regression_utils::set_cloud_color(
