@@ -15,13 +15,13 @@
 #include <pointnet2_pytorch/cost_regression_utils.hpp>
 #include <pcl/common/centroid.h>
 
-
 int main()
 {
   // PARAMETERS
-  double CELL_RADIUS = 0.0175;
+  double CELL_RADIUS = 0.015;
   double MAX_ALLOWED_TILT = 25.0; // degrees
-  double MAX_ALLOWED_POINT_DEVIATION = 0.005;
+  double MAX_ALLOWED_POINT_DEVIATION = 0.004;
+  double MAX_ALLOWED_ENERGY_GAP = 0.02;
   double NODE_ELEVATION_DISTANCE = 0.005;
   const double kMAX_COLOR_RANGE = 255.0;
 
@@ -81,12 +81,18 @@ int main()
     double average_point_deviation_from_plane =
       cost_regression_utils::average_point_deviation_from_plane(i.second, plane_model);
 
+    double max_energy_gap_in_cloud =
+      cost_regression_utils::max_energy_gap_in_cloud(i.second, 0.1, 1.0);
+
     double deviation_of_points_cost = average_point_deviation_from_plane /
       MAX_ALLOWED_POINT_DEVIATION *
       kMAX_COLOR_RANGE;
+    double energy_gap_cost = max_energy_gap_in_cloud / MAX_ALLOWED_ENERGY_GAP *
+      kMAX_COLOR_RANGE;
+
     double slope_cost = std::max(pitch, roll);
 
-    double total_cost = 0.6 * slope_cost + 0.4 * deviation_of_points_cost;
+    double total_cost = 0.0 * slope_cost + 1.0 * deviation_of_points_cost + 0.0 * energy_gap_cost;
 
     auto plane_fitted_cell =
       cost_regression_utils::set_cloud_color(

@@ -233,4 +233,22 @@ double average_point_deviation_from_plane(
   return average_point_deviation_from_plane;
 }
 
+double max_energy_gap_in_cloud(
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double m, double v)
+{
+  pcl::PointXYZRGB lower_bound_point(cloud->points.front());
+  pcl::PointXYZRGB upper_bound_point(cloud->points.front());
+  for (size_t i = 0; i < cloud->points.size(); i++) {
+    if (cloud->points[i].z < lower_bound_point.z) {
+      lower_bound_point = cloud->points[i];
+    }
+    if (cloud->points[i].z > upper_bound_point.z) {
+      upper_bound_point = cloud->points[i];
+    }
+  }
+  double max_energy_gap = m * 9.82 * std::abs(upper_bound_point.z - lower_bound_point.z) +
+    0.5 * m * std::pow(v, 2);
+  return max_energy_gap;
+}
+
 }  // namespace cost_regression_utils
