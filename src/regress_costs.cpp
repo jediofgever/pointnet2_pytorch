@@ -18,7 +18,7 @@
 int main()
 {
   // PARAMETERS
-  double CELL_RADIUS = 0.015;
+  double CELL_RADIUS = 0.010;
   double MAX_ALLOWED_TILT = 25.0; // degrees
   double MAX_ALLOWED_POINT_DEVIATION = 0.008;
   double MAX_ALLOWED_ENERGY_GAP = 0.03;
@@ -52,8 +52,11 @@ int main()
     std::cerr << "Could not read PCD file: " << denoised_pcl_filename << std::endl;
   }
 
+  // cost_regression_utils::pcl_to_cv_mat(denoised_cloud, true, 1000);
+
   // REMOVE NON TRAVERSABLE POINTS(RED POINTS)
-  auto pure_traversable_pcl = cost_regression_utils::remove_non_traversable_points(denoised_cloud);
+  auto pure_traversable_pcl = cost_regression_utils::get_traversable_points(denoised_cloud);
+  auto pure_non_traversable_pcl = cost_regression_utils::get_non_traversable_points(denoised_cloud);
 
   // UNIFORMLY SAMPLE NODES ON TOP OF TRAVERSABLE CLOUD
   auto uniformly_sampled_nodes = cost_regression_utils::uniformly_sample_cloud(
@@ -91,28 +94,30 @@ int main()
 
     double slope_cost = std::max(pitch, roll) / MAX_ALLOWED_TILT * kMAX_COLOR_RANGE;
 
-    double total_cost = 0.8 * slope_cost + 0.1 * deviation_of_points_cost + 0.1 * energy_gap_cost;
+    double total_cost = 1.0 * slope_cost + 0.0 * deviation_of_points_cost + 0.0 * energy_gap_cost;
 
     auto plane_fitted_cell =
       cost_regression_utils::set_cloud_color(
       i.second, std::vector<double>(
     {
-      total_cost,
+      0,
       kMAX_COLOR_RANGE - total_cost,
-      0}));
+      total_cost}));
 
     pcl::PointXYZRGB elevated_node;
     elevated_node.x = i.first.x + NODE_ELEVATION_DISTANCE * plane_model.values[0];
     elevated_node.y = i.first.y + NODE_ELEVATION_DISTANCE * plane_model.values[1];
     elevated_node.z = i.first.z + NODE_ELEVATION_DISTANCE * plane_model.values[2];
-    elevated_node.b = kMAX_COLOR_RANGE;
+    elevated_node.r = kMAX_COLOR_RANGE;
+    elevated_node.g = kMAX_COLOR_RANGE;
     elevated_nodes_cloud.points.push_back(elevated_node);
 
     cld += *plane_fitted_cell;
   }
   elevated_nodes_cloud.height = 1;
   elevated_nodes_cloud.width = elevated_nodes_cloud.points.size();
-  cld += elevated_nodes_cloud;
+  //cld += elevated_nodes_cloud;
+  cld += *pure_non_traversable_pcl;
 
   pcl::io::savePCDFile("../data/decomposed_traversability_cloud.pcd", cld, false);
   std::cout << "===================================" << std::endl;

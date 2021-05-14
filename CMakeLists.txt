@@ -10,16 +10,22 @@ option(USE_CUDA "Use CUDA" ON)
 set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-O3 -gencode arch=compute_60,code=sm_60)
 set(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda")
 
+
 find_package(PCL REQUIRED)
 find_package(Torch REQUIRED)
 find_package(CUDA REQUIRED)
 find_package(CUDNN REQUIRED)
+find_package(OpenCV REQUIRED COMPONENTS opencv_highgui CONFIG)
+
+list(APPEND CMAKE_MODULE_PATH "/usr/local/lib/cmake/OpenVDB")
+find_package(OpenVDB REQUIRED)
 
 include_directories(
     include
     ${PCL_INCLUDE_DIRS}
     ${Torch_INCLUDE_DIRS}
-    ${CUDA_INCLUDE_DIRS})
+    ${CUDA_INCLUDE_DIRS}
+    ${OpenCV_INCLUDE_DIRS})
 
 add_executable(test_pointnet2_utils test/test_pointnet2_utils.cpp
                                     src/pointnet2_utils.cpp)
@@ -41,14 +47,25 @@ target_link_libraries(train_pointnet2_sem_seg ${PCL_LIBRARIES} ${TORCH_LIBRARIES
 add_executable(regress_costs  src/regress_costs.cpp
                               src/cost_regression_utils.cpp
                               src/pointnet2_utils.cpp)
-target_link_libraries(regress_costs ${PCL_LIBRARIES} ${TORCH_LIBRARIES})
+target_link_libraries(regress_costs ${PCL_LIBRARIES} ${TORCH_LIBRARIES} ${OpenCV_LIBRARIES})
 
-install(TARGETS test_pointnet2_utils test_pointnet2_core_modules train_pointnet2_sem_seg regress_costs
+add_executable(test_openvdb  test/test_openvdb.cpp)
+target_link_libraries(test_openvdb OpenVDB::openvdb)
+
+install(TARGETS test_pointnet2_utils 
+                test_pointnet2_core_modules 
+                train_pointnet2_sem_seg 
+                regress_costs
+                test_openvdb
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin)
 
-install(TARGETS test_pointnet2_utils test_pointnet2_core_modules train_pointnet2_sem_seg regress_costs
+install(TARGETS test_pointnet2_utils 
+                test_pointnet2_core_modules 
+                train_pointnet2_sem_seg 
+                regress_costs
+                test_openvdb
         RUNTIME DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY include/
