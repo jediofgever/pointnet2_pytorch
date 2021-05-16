@@ -25,7 +25,7 @@
 namespace cost_regression_utils
 {
 
-pcl::PointCloud<pcl::PointXYZRGB> denoise_segmented_cloud(
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr denoise_segmented_cloud(
   const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double radius,
   double tolerated_divergence_rate, int min_num_neighbours);
 
@@ -44,7 +44,9 @@ std::vector<std::pair<pcl::PointXYZRGB,
   const pcl::PointCloud<pcl::PointXYZRGB>::Ptr uniformly_sampled_nodes,
   double radius);
 
-pcl::ModelCoefficients fit_plane_to_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+pcl::ModelCoefficients fit_plane_to_cloud(
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,
+  double dist_thes);
 
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr set_cloud_color(
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,

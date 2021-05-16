@@ -18,15 +18,17 @@
 int main()
 {
   // PARAMETERS
-  double CELL_RADIUS = 0.010;
+  double CELL_RADIUS = 0.8;
   double MAX_ALLOWED_TILT = 25.0; // degrees
-  double MAX_ALLOWED_POINT_DEVIATION = 0.008;
-  double MAX_ALLOWED_ENERGY_GAP = 0.03;
-  double NODE_ELEVATION_DISTANCE = 0.005;
+  double MAX_ALLOWED_POINT_DEVIATION = 0.8;
+  double MAX_ALLOWED_ENERGY_GAP = 0.3;
+  double NODE_ELEVATION_DISTANCE = 0.5;
+  double PLANE_FIT_THRES = 0.3;
+  bool INCLUDE_NODE_CENTERS_IN_CLOUD = true;
   const double kMAX_COLOR_RANGE = 255.0;
 
   // LOAD SEGMENTED CLOUD FIRST
-  std::string segmneted_pcl_filename = "../data/segmented_cloud.pcd";
+  std::string segmneted_pcl_filename = "../data/denormal_segmented_cloud.pcd";
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr segmented_pcl(
     new pcl::PointCloud<pcl::PointXYZRGB>);
   if (!pcl::io::loadPCDFile(segmneted_pcl_filename, *segmented_pcl)) {
@@ -37,22 +39,10 @@ int main()
     std::cerr << "Could not read PCD file: " << segmneted_pcl_filename << std::endl;
   }
 
-  // DENOISE THE LOUD IF HAVENT ALREADY
-  //auto denoised_cloud = denoise_segmented_cloud(segmented_pcl, 0.025, 0.3, 10);
-  //pcl::io::savePCDFile("../data/denoised_cloud.pcd", denoised_cloud, false);
-
-  // WHEN CLOUS IS DENOISED JUST LOAD IT
-  std::string denoised_pcl_filename = "../data/denoised_cloud.pcd";
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr denoised_cloud(
-    new pcl::PointCloud<pcl::PointXYZRGB>);
-  if (!pcl::io::loadPCDFile(denoised_pcl_filename, *denoised_cloud)) {
-    std::cout << "Gonna load a cloud with " << denoised_cloud->points.size() <<
-      " points" << std::endl;
-  } else {
-    std::cerr << "Could not read PCD file: " << denoised_pcl_filename << std::endl;
-  }
-
-  // cost_regression_utils::pcl_to_cv_mat(denoised_cloud, true, 1000);
+  // DENOISE THE CLOUD IF HAVENT ALREADY
+  auto denoised_cloud =
+    cost_regression_utils::denoise_segmented_cloud(segmented_pcl, 0.8, 0.3, 10);
+  //pcl::io::savePCDFile("../data/denoised_cloud.pcd", *denoised_cloud, false);
 
   // REMOVE NON TRAVERSABLE POINTS(RED POINTS)
   auto pure_traversable_pcl = cost_regression_utils::get_traversable_points(denoised_cloud);
@@ -75,7 +65,7 @@ int main()
   pcl::PointCloud<pcl::PointXYZRGB> elevated_nodes_cloud;
   for (auto && i : decomposed_cells) {
 
-    auto plane_model = cost_regression_utils::fit_plane_to_cloud(i.second);
+    auto plane_model = cost_regression_utils::fit_plane_to_cloud(i.second, PLANE_FIT_THRES);
     auto rpy_from_plane_model = cost_regression_utils::absolute_rpy_from_plane(plane_model);
     auto pitch = rpy_from_plane_model[0];
     auto roll = rpy_from_plane_model[1];
@@ -114,9 +104,12 @@ int main()
 
     cld += *plane_fitted_cell;
   }
-  elevated_nodes_cloud.height = 1;
-  elevated_nodes_cloud.width = elevated_nodes_cloud.points.size();
-  //cld += elevated_nodes_cloud;
+
+  if (INCLUDE_NODE_CENTERS_IN_CLOUD) {
+    elevated_nodes_cloud.height = 1;
+    elevated_nodes_cloud.width = elevated_nodes_cloud.points.size();
+    cld += elevated_nodes_cloud;
+  }
   cld += *pure_non_traversable_pcl;
 
   pcl::io::savePCDFile("../data/decomposed_traversability_cloud.pcd", cld, false);

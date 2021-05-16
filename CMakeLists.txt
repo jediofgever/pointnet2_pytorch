@@ -50,7 +50,7 @@ add_executable(regress_costs  src/regress_costs.cpp
 target_link_libraries(regress_costs ${PCL_LIBRARIES} ${TORCH_LIBRARIES} ${OpenCV_LIBRARIES})
 
 add_executable(test_openvdb  test/test_openvdb.cpp)
-target_link_libraries(test_openvdb OpenVDB::openvdb)
+target_link_libraries(test_openvdb OpenVDB::openvdb ${PCL_LIBRARIES})
 
 install(TARGETS test_pointnet2_utils 
                 test_pointnet2_core_modules 

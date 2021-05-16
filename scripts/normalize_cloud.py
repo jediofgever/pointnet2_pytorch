@@ -11,6 +11,7 @@ def pc_normalize(pc):
     pc = pc / m
     return pc
 
+
 pcd = o3d.io.read_point_cloud(os.path.join("../data/train/train1.pcd"))
 
 points = np.asarray(pcd.points).astype(np.float32)

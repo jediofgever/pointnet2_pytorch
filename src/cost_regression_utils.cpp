@@ -17,11 +17,13 @@
 namespace cost_regression_utils
 {
 
-pcl::PointCloud<pcl::PointXYZRGB> denoise_segmented_cloud(
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr denoise_segmented_cloud(
   const pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double radius,
   double tolerated_divergence_rate, int min_num_neighbours)
 {
-  pcl::PointCloud<pcl::PointXYZRGB> denoised_cloud;
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr denoised_cloud(
+    new pcl::PointCloud<pcl::PointXYZRGB>);
+
   pcl::KdTreeFLANN<pcl::PointXYZRGB> kdtree;
   kdtree.setInputCloud(cloud);
 
@@ -62,11 +64,11 @@ pcl::PointCloud<pcl::PointXYZRGB> denoise_segmented_cloud(
     if (i % 1000 == 0) {
       std::cout << "Processed " << i << " points" << std::endl;
     }
-    denoised_cloud.points.push_back(searchPoint);
+    denoised_cloud->points.push_back(searchPoint);
   }
 
-  denoised_cloud.height = 1;
-  denoised_cloud.width = denoised_cloud.points.size();
+  denoised_cloud->height = 1;
+  denoised_cloud->width = denoised_cloud->points.size();
   return denoised_cloud;
 }
 
@@ -160,7 +162,9 @@ std::vector<std::pair<pcl::PointXYZRGB,
   return decomposed_cells;
 }
 
-pcl::ModelCoefficients fit_plane_to_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
+pcl::ModelCoefficients fit_plane_to_cloud(
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,
+  double dist_thes)
 {
   pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
   if (cloud->points.size() > 2) {
@@ -172,7 +176,7 @@ pcl::ModelCoefficients fit_plane_to_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr
     // Mandatory
     seg.setModelType(pcl::SACMODEL_PLANE);
     seg.setMethodType(pcl::SAC_RANSAC);
-    seg.setDistanceThreshold(0.05);
+    seg.setDistanceThreshold(dist_thes);
     seg.setInputCloud(cloud);
     seg.segment(*inliers, *coefficients);
     if (inliers->indices.size() == 0) {
