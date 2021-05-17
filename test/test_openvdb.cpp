@@ -25,7 +25,7 @@ int main()
 {
 
   openvdb::initialize();
-  std::string segmneted_pcl_filename = "/home/ros2-foxy/uneven_ground_dataset/train_0.pcd";
+  std::string segmneted_pcl_filename = "/home/atas/uneven_ground_dataset/train_0.pcd";
 
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(
     new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -110,7 +110,7 @@ int main()
   vox_grid->setName("LevelSetSphere");
 
   // Create a VDB file object.
-  openvdb::io::File file("/home/ros2-foxy/mygrids.vdb");
+  openvdb::io::File file("/home/atas/mygrids.vdb");
   // Add the grid pointer to a container.
   openvdb::GridPtrVec grids;
   grids.push_back(vox_grid);

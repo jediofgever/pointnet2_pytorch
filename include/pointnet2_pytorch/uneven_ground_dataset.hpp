@@ -24,21 +24,68 @@ namespace uneven_ground_dataset
 class UnevenGroudDataset : public torch::data::Dataset<UnevenGroudDataset>
 {
 public:
+  /**
+   * @brief Construct a new Uneven Groud Dataset object
+   *
+   * @param root_dir
+   * @param device
+   * @param num_point_per_batch
+   * @param downsample_leaf_size
+   * @param use_normals_as_feature
+   */
   UnevenGroudDataset(
-    std::string root_dir /*root directory to dataset*/, at::Device device,
-    int num_point_per_batch, double downsample_leaf_size, bool use_normals_as_feature);
+    std::string root_dir,
+    at::Device device,
+    int num_point_per_batch,
+    double downsample_leaf_size,
+    bool use_normals_as_feature);
+
+  /**
+   * @brief Destroy the Uneven Groud Dataset object
+   *
+   */
   ~UnevenGroudDataset();
 
+  /**
+   * @brief Given the batch index , return the data at the batch index
+   *
+   * @param index
+   * @return torch::data::Example<at::Tensor, at::Tensor>
+   */
   torch::data::Example<at::Tensor, at::Tensor> get(size_t index) override;
+
+  /**
+   * @brief return total number of batch samples
+   *
+   * @return torch::optional<size_t>
+   */
   torch::optional<size_t> size() const override;
+
+  /**
+   * @brief given a file path to a pcd file,
+   * load it as tensor, with N number of points in each batch
+   *
+   * @param cloud_filename
+   * @param N
+   * @param device
+   * @return std::pair<at::Tensor, at::Tensor>
+   */
   std::pair<at::Tensor, at::Tensor> load_pcl_as_torch_tensor(
     const std::string cloud_filename, int N, torch::Device device);
+
+  /**
+   * @brief Downsample a cloud with leaf size of downsample_leaf_size
+   *
+   * @param inputCloud
+   * @param downsample_leaf_size
+   * @return pcl::PointCloud<pcl::PointXYZRGB>
+   */
   pcl::PointCloud<pcl::PointXYZRGB> downsampleInputCloud(
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr inputCloud, double downsample_leaf_size);
 
 private:
   std::string root_dir_;
-  std::vector<std::string> filename_vector_;
+  std::vector<std::string> filenames_;
   at::Tensor xyz_;
   at::Tensor labels_;
   int num_point_per_batch_;

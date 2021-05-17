@@ -80,11 +80,14 @@
         "__split_buffer": "cpp",
         "__tree": "cpp",
         "queue": "cpp",
-        "stack": "cpp"
+        "stack": "cpp",
+        "future": "cpp",
+        "shared_mutex": "cpp"
     },
     "ros.distro": "foxy",
     "python.analysis.extraPaths": [
         "/opt/ros/foxy/lib/python3.8/site-packages"
     ],
-    "python.formatting.provider": "black"
+    "python.formatting.provider": "black",
+    "cmake.configureOnOpen": false
 }

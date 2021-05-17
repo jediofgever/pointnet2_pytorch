@@ -23,7 +23,6 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr denoise_segmented_cloud(
 {
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr denoised_cloud(
     new pcl::PointCloud<pcl::PointXYZRGB>);
-
   pcl::KdTreeFLANN<pcl::PointXYZRGB> kdtree;
   kdtree.setInputCloud(cloud);
 

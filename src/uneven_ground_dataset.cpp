@@ -16,25 +16,23 @@
 
 namespace uneven_ground_dataset
 {
-
 UnevenGroudDataset::UnevenGroudDataset(
   std::string root_dir, at::Device device,
   int num_point_per_batch, double downsample_leaf_size, bool use_normals_as_feature)
+: downsample_leaf_size_(downsample_leaf_size),
+  num_point_per_batch_(num_point_per_batch),
+  root_dir_(root_dir),
+  use_normals_as_feature_(use_normals_as_feature)
 {
-  downsample_leaf_size_ = downsample_leaf_size;
-  num_point_per_batch_ = num_point_per_batch;
-  root_dir_ = root_dir;
-  use_normals_as_feature_ = use_normals_as_feature;
-
-  std::cout << "given root directory:" << root_dir_ << std::endl;
+  std::cout << "UnevenGroudDataset: given root directory is" << root_dir_ << std::endl;
   for (auto & entry : std::experimental::filesystem::directory_iterator(root_dir_)) {
-    std::cout << "processing: " << entry.path() << std::endl;
-    filename_vector_.push_back(entry.path());
+    std::cout << "UnevenGroudDataset: processing given file " << entry.path() << std::endl;
+    filenames_.push_back(entry.path());
   }
 
   int index = 0;
 
-  for (auto && crr_file : filename_vector_) {
+  for (auto && crr_file : filenames_) {
     std::pair<at::Tensor, at::Tensor> xyz_labels_pair = load_pcl_as_torch_tensor(
       crr_file, num_point_per_batch_, device);
     if (index == 0) {
@@ -46,8 +44,8 @@ UnevenGroudDataset::UnevenGroudDataset(
     }
     index++;
   }
-  std::cout << "shape of input data xyz_ " << xyz_.sizes() << std::endl;
-  std::cout << "shape of input labels labels_" << labels_.sizes() << std::endl;
+  std::cout << "UnevenGroudDataset: shape of input data xyz_ " << xyz_.sizes() << std::endl;
+  std::cout << "UnevenGroudDataset: shape of input labels labels_" << labels_.sizes() << std::endl;
 }
 
 UnevenGroudDataset::~UnevenGroudDataset()
@@ -60,9 +58,10 @@ std::pair<at::Tensor, at::Tensor> UnevenGroudDataset::load_pcl_as_torch_tensor(
 
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
   if (!pcl::io::loadPCDFile(cloud_filename, *cloud)) {
-    std::cout << "Gonna load a cloud with " << cloud->points.size() << " points" << std::endl;
+    std::cout << "UnevenGroudDataset: loading a cloud with " << cloud->points.size() << " points" <<
+      std::endl;
   } else {
-    std::cerr << "Could not read PCD file: " << cloud_filename << std::endl;
+    std::cerr << "UnevenGroudDataset: Could not read PCD file: " << cloud_filename << std::endl;
     return std::make_pair(at::empty({1}, device), at::empty({1}, device));
   }
 
@@ -79,9 +78,11 @@ std::pair<at::Tensor, at::Tensor> UnevenGroudDataset::load_pcl_as_torch_tensor(
   }
 
   if (downsample_leaf_size_ > 0.0) {
-    std::cout << "Gonna downsample cloud with leaf size of  " << downsample_leaf_size_ << std::endl;
+    std::cout << "UnevenGroudDataset: Gonna downsample cloud with leaf size of  " <<
+      downsample_leaf_size_ << std::endl;
     *cloud = downsampleInputCloud(cloud, downsample_leaf_size_);
-    std::cout << "Cloud has " << cloud->points.size() << " points after downsample" << std::endl;
+    std::cout << "UnevenGroudDataset: Cloud has " << cloud->points.size() <<
+      " points after downsample" << std::endl;
   }
 
   // Convert cloud to a tensor with shape of [B,N,C]
