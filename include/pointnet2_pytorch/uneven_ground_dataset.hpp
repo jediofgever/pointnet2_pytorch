@@ -70,8 +70,6 @@ public:
    * @param device
    * @return std::pair<at::Tensor, at::Tensor>
    */
-  std::pair<at::Tensor, at::Tensor> load_pcl_as_torch_tensor(
-    const std::string cloud_filename, int N, torch::Device device);
 
   /**
    * @brief Downsample a cloud with leaf size of downsample_leaf_size
@@ -82,6 +80,47 @@ public:
    */
   pcl::PointCloud<pcl::PointXYZRGB> downsampleInputCloud(
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr inputCloud, double downsample_leaf_size);
+
+  /**
+   * @brief estimate and retun normals of inputCloud
+   *
+   * @param inputCloud
+   * @param radius
+   * @return pcl::PointCloud<pcl::Normal>
+   */
+  pcl::PointCloud<pcl::Normal> estimateCloudNormals(
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr inputCloud, double radius);
+
+  /**
+   * @brief Construct a new pcl X Y Z Feature2 Tensor object
+   *
+   * @param cloud
+   * @param N
+   * @param device
+   */
+  at::Tensor pclXYZFeature2Tensor(
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int N, torch::Device device);
+
+  /**
+  * @brief Construct a new pcl X Y Z Feature2 Tensor object
+  *
+  * @param cloud
+  * @param N
+  * @param device
+  */
+  at::Tensor pclNormalFeature2Tensor(
+    pcl::PointCloud<pcl::Normal> normals, int N, torch::Device device);
+
+  /**
+   * @brief
+   *
+   * @param inputCloud
+   * @param N
+   * @param device
+   * @return at::Tensor
+   */
+  at::Tensor extractPCLLabelsfromRGB(
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr inputCloud, int N, torch::Device device);
 
 private:
   std::string root_dir_;

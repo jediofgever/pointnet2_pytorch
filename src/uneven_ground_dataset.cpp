@@ -30,107 +30,50 @@ UnevenGroudDataset::UnevenGroudDataset(
     filenames_.push_back(entry.path());
   }
 
-  int index = 0;
+  for (int i = 0; i < filenames_.size(); i++) {
 
-  for (auto && crr_file : filenames_) {
-    std::pair<at::Tensor, at::Tensor> xyz_labels_pair = load_pcl_as_torch_tensor(
-      crr_file, num_point_per_batch_, device);
-    if (index == 0) {
-      xyz_ = xyz_labels_pair.first;
-      labels_ = xyz_labels_pair.second;
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
+    pcl::PointCloud<pcl::Normal> normals;
+
+    if (!pcl::io::loadPCDFile(filenames_[i], *cloud)) {
+      std::cout << "Gonna load a cloud with " << cloud->points.size() << " points" << std::endl;
     } else {
-      xyz_ = torch::cat({xyz_, xyz_labels_pair.first}, 0);
-      labels_ = torch::cat({labels_, xyz_labels_pair.second}, 0);
+      std::cerr << "Could not read PCD file: " << filenames_[i] << std::endl;
     }
-    index++;
+
+    *cloud = downsampleInputCloud(cloud, downsample_leaf_size_);
+
+    if (use_normals_as_feature) {
+      normals = estimateCloudNormals(cloud, 0.5);
+    }
+
+    at::Tensor xyz_feature_tensor = pclXYZFeature2Tensor(
+      cloud,
+      num_point_per_batch,
+      device);
+    at::Tensor normal_feature_tensor = pclNormalFeature2Tensor(
+      normals,
+      num_point_per_batch,
+      device);
+    at::Tensor label_tensor = extractPCLLabelsfromRGB(cloud, num_point_per_batch, device);
+
+    auto xyz = torch::cat({xyz_feature_tensor, normal_feature_tensor}, 2);
+
+    if (i == 0) {
+      xyz_ = xyz;
+      labels_ = label_tensor;
+    } else {
+      xyz_ = torch::cat({xyz_, xyz}, 0);
+      labels_ = torch::cat({labels_, label_tensor}, 0);
+    }
   }
+
   std::cout << "UnevenGroudDataset: shape of input data xyz_ " << xyz_.sizes() << std::endl;
   std::cout << "UnevenGroudDataset: shape of input labels labels_" << labels_.sizes() << std::endl;
 }
 
 UnevenGroudDataset::~UnevenGroudDataset()
 {
-}
-
-std::pair<at::Tensor, at::Tensor> UnevenGroudDataset::load_pcl_as_torch_tensor(
-  const std::string cloud_filename, int N, torch::Device device)
-{
-
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
-  if (!pcl::io::loadPCDFile(cloud_filename, *cloud)) {
-    std::cout << "UnevenGroudDataset: loading a cloud with " << cloud->points.size() << " points" <<
-      std::endl;
-  } else {
-    std::cerr << "UnevenGroudDataset: Could not read PCD file: " << cloud_filename << std::endl;
-    return std::make_pair(at::empty({1}, device), at::empty({1}, device));
-  }
-
-  pcl::PointCloud<pcl::Normal>::Ptr normals_out(new pcl::PointCloud<pcl::Normal>);
-  if (use_normals_as_feature_) {
-    pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> norm_est;
-    pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZRGB>());
-    norm_est.setSearchMethod(tree);
-    norm_est.setRadiusSearch(0.1);
-    norm_est.setInputCloud(cloud);
-    norm_est.setSearchSurface(cloud);
-    norm_est.compute(*normals_out);
-    norm_est.setKSearch(20);
-  }
-
-  if (downsample_leaf_size_ > 0.0) {
-    std::cout << "UnevenGroudDataset: Gonna downsample cloud with leaf size of  " <<
-      downsample_leaf_size_ << std::endl;
-    *cloud = downsampleInputCloud(cloud, downsample_leaf_size_);
-    std::cout << "UnevenGroudDataset: Cloud has " << cloud->points.size() <<
-      " points after downsample" << std::endl;
-  }
-
-  // Convert cloud to a tensor with shape of [B,N,C]
-  // Determine batches
-  int B = std::floor(cloud->points.size() / N);
-  int C = 3;
-
-  if (normals_out->points.size()) {
-    C += 3;
-  }
-
-  at::Tensor xyz = torch::zeros({B, N, C}, device);
-
-  // Two classes, traversable and NONtraversable
-  at::Tensor labels = torch::zeros({B, N, 1}, device);
-
-  for (int i = 0; i < B; i++) {
-    for (int j = 0; j < N; j++) {
-
-      if (i * N + j < cloud->points.size()) {
-        pcl::PointXYZRGB crr_point = cloud->points[i * N + j];
-        at::Tensor crr_xyz = at::zeros({1, 3}, device);
-        crr_xyz.index_put_({0, 0}, crr_point.x);
-        crr_xyz.index_put_({0, 1}, crr_point.y);
-        crr_xyz.index_put_({0, 2}, crr_point.z);
-        xyz.index_put_({i, j, torch::indexing::Slice(torch::indexing::None, 3)}, crr_xyz);
-
-        if (normals_out->points.size()) {
-          pcl::Normal crr_point_normal = normals_out->points[i * N + j];
-          at::Tensor crr_xyz_normal = at::zeros({1, 3}, device);
-          crr_xyz_normal.index_put_({0, 0}, crr_point_normal.normal_x);
-          crr_xyz_normal.index_put_({0, 1}, crr_point_normal.normal_y);
-          crr_xyz_normal.index_put_({0, 2}, crr_point_normal.normal_z);
-          xyz.index_put_({i, j, torch::indexing::Slice(3, torch::indexing::None)}, crr_xyz_normal);
-        }
-
-        at::Tensor crr_label = at::zeros({1, 1}, device);
-        if (crr_point.r /* red points ar NON traversable*/) {
-          crr_label.index_put_({0, 0}, 0);
-        } else {
-          crr_label.index_put_({0, 0}, 1);
-        }
-        labels.index_put_({i, j}, crr_label);
-      }
-    }
-
-  }
-  return std::make_pair(xyz, labels);
 }
 
 torch::data::Example<at::Tensor, at::Tensor> UnevenGroudDataset::get(size_t index)
@@ -153,4 +96,90 @@ pcl::PointCloud<pcl::PointXYZRGB> UnevenGroudDataset::downsampleInputCloud(
   voxelGrid.filter(*downsampledCloud);
   return *downsampledCloud;
 }
+
+pcl::PointCloud<pcl::Normal> UnevenGroudDataset::estimateCloudNormals(
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr inputCloud, double radius)
+{
+  pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+  pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> normal_estimator;
+  pcl::search::KdTree<pcl::PointXYZRGB>::Ptr kd_tree(new pcl::search::KdTree<pcl::PointXYZRGB>());
+  normal_estimator.setSearchMethod(kd_tree);
+  normal_estimator.setRadiusSearch(radius);
+  normal_estimator.setInputCloud(inputCloud);
+  normal_estimator.setSearchSurface(inputCloud);
+  normal_estimator.compute(*normals);
+  normal_estimator.setKSearch(20);
+  return *normals;
+}
+
+at::Tensor UnevenGroudDataset::pclXYZFeature2Tensor(
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int N, torch::Device device)
+{
+  int B = std::floor(cloud->points.size() / N);
+  int C = 3;
+  at::Tensor feature_tensor = torch::zeros({B, N, C}, device);
+  for (int i = 0; i < B; i++) {
+    for (int j = 0; j < N; j++) {
+      if (i * N + j < cloud->points.size()) {
+        auto curr_point_feature = cloud->points[i * N + j];
+        at::Tensor curr_point_feature_tensor = at::zeros({1, 3}, device);
+        curr_point_feature_tensor.index_put_({0, 0}, curr_point_feature.x);
+        curr_point_feature_tensor.index_put_({0, 1}, curr_point_feature.y);
+        curr_point_feature_tensor.index_put_({0, 2}, curr_point_feature.z);
+        feature_tensor.index_put_(
+          {i, j, torch::indexing::Slice(
+              torch::indexing::None,
+              3)}, curr_point_feature_tensor);
+      }
+    }
+  }
+  return feature_tensor;
+}
+
+at::Tensor UnevenGroudDataset::pclNormalFeature2Tensor(
+  pcl::PointCloud<pcl::Normal> normals, int N, torch::Device device)
+{
+  int B = std::floor(normals.points.size() / N);
+  int C = 3;
+  at::Tensor feature_tensor = torch::zeros({B, N, C}, device);
+  for (int i = 0; i < B; i++) {
+    for (int j = 0; j < N; j++) {
+      if (i * N + j < normals.points.size()) {
+        auto curr_point_feature = normals.points[i * N + j];
+        at::Tensor curr_point_feature_tensor = at::zeros({1, 3}, device);
+        curr_point_feature_tensor.index_put_({0, 0}, curr_point_feature.normal_x);
+        curr_point_feature_tensor.index_put_({0, 1}, curr_point_feature.normal_y);
+        curr_point_feature_tensor.index_put_({0, 2}, curr_point_feature.normal_z);
+        feature_tensor.index_put_(
+          {i, j, torch::indexing::Slice(
+              torch::indexing::None,
+              3)}, curr_point_feature_tensor);
+      }
+    }
+  }
+  return feature_tensor;
+}
+
+at::Tensor UnevenGroudDataset::extractPCLLabelsfromRGB(
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr inputCloud, int N, torch::Device device)
+{
+  int B = std::floor(inputCloud->points.size() / N);
+  // Two classes, traversable and NONtraversable
+  at::Tensor labels = torch::zeros({B, N, 1}, device);
+  for (int i = 0; i < B; i++) {
+    for (int j = 0; j < N; j++) {
+      pcl::PointXYZRGB point = inputCloud->points[i * N + j];
+      at::Tensor point_label_tensor = at::zeros({1, 1}, device);
+      if (point.r /* red points ar NON traversable*/) {
+        point_label_tensor.index_put_({0, 0}, 0);
+      } else {
+        point_label_tensor.index_put_({0, 0}, 1);
+      }
+      labels.index_put_({i, j}, point_label_tensor);
+    }
+  }
+  return labels;
+}
+
+
 }  // namespace uneven_ground_dataset
