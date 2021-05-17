@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.15)
 project(pointnet2_pytorch)
 
 # specify the C++ standard
@@ -9,7 +9,6 @@ set(CMAKE_CUDA_COMPILER "/usr/local/cuda/bin/nvcc")
 option(USE_CUDA "Use CUDA" ON)
 set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-O3 -gencode arch=compute_60,code=sm_60)
 set(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda")
-
 
 find_package(PCL REQUIRED)
 find_package(Torch REQUIRED)
