@@ -27,21 +27,38 @@ namespace uneven_ground_dataset
 class UnevenGroudDataset : public torch::data::Dataset<UnevenGroudDataset>
 {
 public:
+  struct Parameters
+  {
+    std::string root_dir;
+    at::Device device;
+    int num_point_per_batch;
+    double downsample_leaf_size;
+    bool use_normals_as_feature;
+    bool normal_estimation_radius;
+    double partition_step_size;
+    std::string split;
+    bool is_training;
+
+    // Assign meaningful default values to this parameters
+    Parameters()
+    : root_dir("/home"),
+      device(torch::kCPU),
+      num_point_per_batch(2048),
+      downsample_leaf_size(0.0),
+      use_normals_as_feature(true),
+      normal_estimation_radius(0.5),
+      partition_step_size(10.0),
+      split("train"),
+      is_training(true)
+    {
+    }
+  };
   /**
    * @brief Construct a new Uneven Groud Dataset object
    *
-   * @param root_dir
-   * @param device
-   * @param num_point_per_batch
-   * @param downsample_leaf_size
-   * @param use_normals_as_feature
+   * @param params
    */
-  UnevenGroudDataset(
-    std::string root_dir,
-    at::Device device,
-    int num_point_per_batch,
-    double downsample_leaf_size,
-    bool use_normals_as_feature);
+  UnevenGroudDataset(Parameters params);
 
   /**
    * @brief Destroy the Uneven Groud Dataset object
@@ -63,6 +80,13 @@ public:
    * @return torch::optional<size_t>
    */
   torch::optional<size_t> size() const override;
+
+  /**
+   * @brief
+   *
+   * @return at::Tensor
+   */
+  at::Tensor get_non_normalized_data();
 
   /**
    * @brief given a file path to a pcd file,
@@ -144,13 +168,9 @@ public:
     const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & inputCloud);
 
 private:
-  std::string root_dir_;
-  std::vector<std::string> filenames_;
   at::Tensor xyz_;
   at::Tensor labels_;
-  int num_point_per_batch_;
-  double downsample_leaf_size_;
-  bool use_normals_as_feature_;
+  at::Tensor non_normalized_xyz_;
 };
 
 }  // namespace uneven_ground_dataset

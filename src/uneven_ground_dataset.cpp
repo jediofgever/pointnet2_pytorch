@@ -18,70 +18,89 @@
 
 namespace uneven_ground_dataset
 {
-UnevenGroudDataset::UnevenGroudDataset(
-  std::string root_dir, at::Device device,
-  int num_point_per_batch, double downsample_leaf_size, bool use_normals_as_feature)
-: downsample_leaf_size_(downsample_leaf_size),
-  num_point_per_batch_(num_point_per_batch),
-  root_dir_(root_dir),
-  use_normals_as_feature_(use_normals_as_feature)
+UnevenGroudDataset::UnevenGroudDataset(Parameters params)
 {
-  std::cout << "UnevenGroudDataset: given root directory is" << root_dir_ << std::endl;
-  for (auto & entry : std::experimental::filesystem::directory_iterator(root_dir_)) {
+  std::cout << "UnevenGroudDataset: given root directory is " << params.root_dir << std::endl;
+  std::cout << "UnevenGroudDataset: given split directory is " << params.split << std::endl;
+
+  namespace fs = std::experimental::filesystem;
+  fs::path fs_dir(params.root_dir);
+  fs::path fs_split(params.split);
+  fs::path full_path = fs_dir / fs_split;
+
+  std::vector<std::string> filenames;
+  for (auto & entry : fs::directory_iterator(full_path)) {
     std::cout << "UnevenGroudDataset: processing given file " << entry.path() << std::endl;
-    filenames_.push_back(entry.path());
+    filenames.push_back(entry.path());
   }
 
+  for (int i = 0; i < filenames.size(); i++) {
 
-  for (int i = 0; i < filenames_.size(); i++) {
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
-    if (!pcl::io::loadPCDFile(filenames_[i], *cloud)) {
+    // LOAD FILE
+    if (!pcl::io::loadPCDFile(filenames[i], *cloud)) {
       std::cout << "Gonna load a cloud with " << cloud->points.size() << " points" << std::endl;
     } else {
-      std::cerr << "Could not read PCD file: " << filenames_[i] << std::endl;
+      std::cerr << "Could not read PCD file: " << filenames[i] << std::endl;
     }
-    if (downsample_leaf_size_ > 0.0) {
-      cloud = downsampleInputCloud(cloud, downsample_leaf_size_);
+
+    // DOWNSAMPLE IF REQUESTED
+    if (params.downsample_leaf_size > 0.0) {
+      cloud = downsampleInputCloud(cloud, params.downsample_leaf_size);
     }
-    auto parted_clouds = partitionateCloud(cloud, 25.0);
+
+    auto parted_clouds = partitionateCloud(cloud, params.partition_step_size);
 
     for (auto && parted_cloud : parted_clouds) {
       pcl::PointCloud<pcl::Normal> normals;
 
-      if (use_normals_as_feature) {
-        normals = estimateCloudNormals(parted_cloud, 0.5);
+      if (params.use_normals_as_feature) {
+        normals = estimateCloudNormals(parted_cloud, params.normal_estimation_radius);
       }
-      parted_cloud = normalizeCloud(parted_cloud);
 
-      at::Tensor xyz_feature_tensor = pclXYZFeature2Tensor(
-        parted_cloud,
-        num_point_per_batch,
-        device);
-      at::Tensor normal_feature_tensor = pclNormalFeature2Tensor(
+      auto normalized_parted_cloud = normalizeCloud(parted_cloud);
+
+      at::Tensor normalized_xyz_tensor = pclXYZFeature2Tensor(
+        normalized_parted_cloud,
+        params.num_point_per_batch,
+        params.device);
+
+      at::Tensor normals_tensor = pclNormalFeature2Tensor(
         normals,
-        num_point_per_batch,
-        device);
-      at::Tensor label_tensor = extractPCLLabelsfromRGB(parted_cloud, num_point_per_batch, device);
+        params.num_point_per_batch,
+        params.device);
 
-      auto xyz = xyz_feature_tensor;
+      at::Tensor label_tensor = extractPCLLabelsfromRGB(
+        parted_cloud,
+        params.num_point_per_batch,
+        params.device);
 
-      if (use_normals_as_feature) {
-        xyz = torch::cat({xyz, normal_feature_tensor}, 2);
+      at::Tensor original_xyz_tensor = pclXYZFeature2Tensor(
+        parted_cloud,
+        params.num_point_per_batch,
+        params.device);
+
+      auto xyz = normalized_xyz_tensor;
+      auto original_xyz = original_xyz_tensor;
+
+      if (params.use_normals_as_feature) {
+        xyz = torch::cat({xyz, normals_tensor}, 2);
       }
 
       if (i == 0) {
         xyz_ = xyz;
         labels_ = label_tensor;
+        non_normalized_xyz_ = original_xyz;
       } else {
         xyz_ = torch::cat({xyz_, xyz}, 0);
         labels_ = torch::cat({labels_, label_tensor}, 0);
+        non_normalized_xyz_ = torch::cat({non_normalized_xyz_, original_xyz}, 0);
       }
     }
   }
-  
+
   std::cout << "UnevenGroudDataset: shape of input data xyz_ " << xyz_.sizes() << std::endl;
-  std::cout << "UnevenGroudDataset: shape of input labels labels_" << labels_.sizes() <<
-    std::endl;
+  std::cout << "UnevenGroudDataset: shape of input labels labels_" << labels_.sizes() << std::endl;
 }
 
 UnevenGroudDataset::~UnevenGroudDataset()
@@ -91,6 +110,11 @@ UnevenGroudDataset::~UnevenGroudDataset()
 torch::data::Example<at::Tensor, at::Tensor> UnevenGroudDataset::get(size_t index)
 {
   return {xyz_[index], labels_[index]};
+}
+
+at::Tensor UnevenGroudDataset::get_non_normalized_data()
+{
+  return non_normalized_xyz_;
 }
 
 torch::optional<size_t> UnevenGroudDataset::size() const

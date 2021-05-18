@@ -34,23 +34,25 @@ int main()
 
   torch::Device cuda_device = torch::kCUDA;
 
-  // Training datset
-  std::string train_root_dir = "/home/atas/pointnet2_pytorch/data/raw";
-  auto train_dataset = uneven_ground_dataset::UnevenGroudDataset(
-    train_root_dir, cuda_device, kN, kDOWNSAMPLE_VOXEL_SIZE, kUSE_NORMALS)
-    .map(torch::data::transforms::Stack<>());
+  uneven_ground_dataset::UnevenGroudDataset::Parameters params;
+  params.root_dir = "/home/atas/pointnet2_pytorch/data";
+  params.device = cuda_device;
+  params.num_point_per_batch = kN;
+  params.downsample_leaf_size = kDOWNSAMPLE_VOXEL_SIZE;
+  params.use_normals_as_feature = kUSE_NORMALS;
+  params.normal_estimation_radius = 0.6;
+  params.partition_step_size = 25.0;
+  params.split = "train";
+  params.is_training = true;
+
+  auto train_dataset = uneven_ground_dataset::UnevenGroudDataset(params).map(
+    torch::data::transforms::Stack<>());
+
   auto train_dataset_loader =
     torch::data::make_data_loader<torch::data::samplers::RandomSampler>(
     std::move(train_dataset), kBATCH_SIZE);
-  // testing datset
 
-  /*std::string test_root_dir = "/home/atas/pointnet2_pytorch/data/test";
-  auto test_dataset = uneven_ground_dataset::UnevenGroudDataset(
-    test_root_dir, cuda_device, kN, kDOWNSAMPLE_VOXEL_SIZE, kUSE_NORMALS)
-    .map(torch::data::transforms::Stack<>());
-  auto test_dataset_loader =
-    torch::data::make_data_loader<torch::data::samplers::RandomSampler>(
-    std::move(test_dataset), kBATCH_SIZE);
+
   // initialize net and optimizer
   auto net = std::make_shared<pointnet2_sem_seg::PointNet2SemSeg>();
   net->to(cuda_device);
@@ -132,87 +134,24 @@ int main()
       static_cast<double>(total_samples_in_batch * kN);
 
     std::cout << "===================================" << std::endl;
-    std::cout << "========== Epoch: "<< i << "==============="  << std::endl;
+    std::cout << "========== Epoch: " << i << "===============" << std::endl;
     std::cout << "Loss: " << loss_numerical << std::endl;
     std::cout << "Overall Accuracy: " << overall_batch_accu << std::endl;
 
-    if (loss_numerical < best_loss)
-    {
+    if (loss_numerical < best_loss) {
       best_loss = loss_numerical;
       std::cout << "Found Best Loss at epoch: " << i << std::endl;
       std::cout << "Saving model and optimizer..." << std::endl;
-      try
-      {
-      torch::save(net,"/home/pc/pointnet2_pytorch/log/best_loss_model.pt");
-      torch::save(optimizer, "/home/pc/pointnet2_pytorch/log/best_optim_model.pt");      }
-      catch(const std::exception& e)
-      {
+      try {
+        torch::save(net, "/home/pc/pointnet2_pytorch/log/best_loss_model.pt");
+        torch::save(optimizer, "/home/pc/pointnet2_pytorch/log/best_optim_model.pt");
+      } catch (const std::exception & e) {
         std::cout << "Failed to save model and optimizer..." << std::endl;
         std::cerr << e.what() << '\n';
       }
     }
   }
   std::cout << "Pointnet2 semantic segmentation training Successful." << std::endl;
-  std::cout << "Beginning Testing." << std::endl;
-
-  // Test the model
-  net->eval();
-  torch::NoGradGuard no_grad;
-
-  double loss_numerical = 0.0;
-  int total_samples_in_batch = 0;
-  int num_correct_points = 0;
-  double overall_batch_accu = 0.0;
-
-  for (const auto & batch : *test_dataset_loader) {
-
-    auto xyz = batch.data.to(cuda_device);
-    auto labels = batch.target.to(cuda_device);
-    labels = labels.to(torch::kLong);
-
-    // Permute the channels so that we have  : [B,C,N]
-    xyz = xyz.permute({0, 2, 1});
-
-    auto net_output = net->forward(xyz);
-    at::IntArrayRef output_shape = net_output.first.sizes();
-    at::IntArrayRef labels_shape = labels.sizes();
-
-    auto predicted_label = torch::max(net_output.first, 2);
-
-    total_samples_in_batch += output_shape[0];
-    auto correct_predictions = torch::eq(
-      std::get<1>(predicted_label),
-      labels.view(
-        {labels_shape[0],
-          labels_shape[1] *
-          labels_shape[2]})).to(torch::kLong);
-
-    num_correct_points += correct_predictions.count_nonzero().item<int>();
-
-    // Out: [B * N, num_classes]
-    // label: [B * N]
-    net_output.first = net_output.first.reshape(
-      {output_shape[0] * output_shape[1],
-        output_shape[2]});
-
-    labels = labels.reshape(
-      {labels_shape[0] *
-        labels_shape[1] *
-        labels_shape[2]});
-
-    auto loss = torch::nll_loss(net_output.first, labels);
-
-    // Output the loss and checkpoint every 100 batches.
-    loss_numerical += loss.item<float>();
-  }
-
-  overall_batch_accu = static_cast<double>(num_correct_points) /
-    static_cast<double>(total_samples_in_batch * kN);
-
-  std::cout << "===================================" << std::endl;
-  std::cout << "Testing finished!" << std::endl;;
-  std::cout << "Loss: " << loss_numerical << std::endl;
-  std::cout << "Overall Accuracy: " << overall_batch_accu << std::endl;
-*/
+ 
   return EXIT_SUCCESS;
 }

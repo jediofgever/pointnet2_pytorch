@@ -50,6 +50,13 @@ add_executable(train_pointnet2_sem_seg src/train_pointnet2_sem_seg.cpp
                                        src/uneven_ground_dataset.cpp)
 target_link_libraries(train_pointnet2_sem_seg ${PCL_LIBRARIES} ${TORCH_LIBRARIES} stdc++fs OpenMP::OpenMP_CXX)
 
+add_executable(inference_pointnet2_sem_seg src/inference_pointnet2_sem_seg.cpp
+                                       src/pointnet2_sem_seg.cpp
+                                       src/pointnet2_core.cpp
+                                       src/pointnet2_utils.cpp
+                                       src/uneven_ground_dataset.cpp)
+target_link_libraries(inference_pointnet2_sem_seg ${PCL_LIBRARIES} ${TORCH_LIBRARIES} stdc++fs OpenMP::OpenMP_CXX)
+
 add_executable(regress_costs  src/regress_costs.cpp
                               src/cost_regression_utils.cpp
                               src/pointnet2_utils.cpp)
@@ -61,6 +68,7 @@ target_link_libraries(test_openvdb OpenVDB::openvdb ${PCL_LIBRARIES})
 install(TARGETS test_pointnet2_utils 
                 test_pointnet2_core_modules 
                 train_pointnet2_sem_seg 
+                inference_pointnet2_sem_seg
                 regress_costs
                 test_openvdb
         ARCHIVE DESTINATION lib
@@ -70,6 +78,7 @@ install(TARGETS test_pointnet2_utils
 install(TARGETS test_pointnet2_utils 
                 test_pointnet2_core_modules 
                 train_pointnet2_sem_seg 
+                inference_pointnet2_sem_seg
                 regress_costs
                 test_openvdb
         RUNTIME DESTINATION lib/${PROJECT_NAME})
