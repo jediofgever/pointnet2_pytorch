@@ -14,7 +14,6 @@ find_package(PCL REQUIRED)
 find_package(Torch REQUIRED)
 find_package(CUDA REQUIRED)
 find_package(CUDNN REQUIRED)
-find_package(OpenCV REQUIRED COMPONENTS opencv_highgui CONFIG)
 
 #list(APPEND CMAKE_MODULE_PATH "/usr/local/lib/cmake/OpenVDB")
 #find_package(OpenVDB REQUIRED)

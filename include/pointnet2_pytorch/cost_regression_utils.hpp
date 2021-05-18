@@ -60,5 +60,4 @@ double average_point_deviation_from_plane(
 double max_energy_gap_in_cloud(
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double m, double v);
 
-
 }  // namespace pointnet2_utils

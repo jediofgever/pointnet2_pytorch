@@ -25,7 +25,7 @@ int main()
   const double kDOWNSAMPLE_VOXEL_SIZE = 0.0;
   const double kNORMAL_ESTIMATION_RADIUS =1.6;
   const int kBATCH_SIZE = 32;
-  const int kEPOCHS = 24;
+  const int kEPOCHS = 16;
   int kN = 4096;
   bool kUSE_NORMALS = true;
 
@@ -53,7 +53,6 @@ int main()
   auto train_dataset_loader =
     torch::data::make_data_loader<torch::data::samplers::RandomSampler>(
     std::move(train_dataset), kBATCH_SIZE);
-
 
   // initialize net and optimizer
   auto net = std::make_shared<pointnet2_sem_seg::PointNet2SemSeg>();
@@ -122,7 +121,7 @@ int main()
       // Output the loss and checkpoint every 100 batches.
       loss_numerical += loss.item<float>();
       batch_counter++;
-      std::cout << "Current Batch: " << batch_counter << " out of" << train_dataset.dataset().size() << std::endl;
+      std::cout << "Current Batch: " << batch_counter << std::endl;
     }
 
     // Decay learning rate
@@ -145,8 +144,8 @@ int main()
       std::cout << "Found Best Loss at epoch: " << i << std::endl;
       std::cout << "Saving model and optimizer..." << std::endl;
       try {
-        torch::save(net, "/home/pc/pointnet2_pytorch/log/best_loss_model.pt");
-        torch::save(optimizer, "/home/pc/pointnet2_pytorch/log/best_optim_model.pt");
+        torch::save(net, "/home/atas/pointnet2_pytorch/log/best_loss_model.pt");
+        torch::save(optimizer, "/home/atas/pointnet2_pytorch/log/best_optim_model.pt");
       } catch (const std::exception & e) {
         std::cout << "Failed to save model and optimizer..." << std::endl;
         std::cerr << e.what() << '\n';

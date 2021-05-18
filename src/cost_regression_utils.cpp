@@ -107,7 +107,7 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr uniformly_sample_cloud(
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr uniformly_sampled_cloud(
     new pcl::PointCloud<pcl::PointXYZRGB>);
   // Uniform sampling object.
-  pcl::UniformSampling<pcl::PointXYZRGB> filter();
+  pcl::UniformSampling<pcl::PointXYZRGB> filter;
   filter.setInputCloud(cloud);
   filter.setRadiusSearch(radius);
   // We need an additional object to store the indices of surviving points.

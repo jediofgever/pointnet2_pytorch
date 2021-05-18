@@ -31,9 +31,9 @@ test_index = 0
 
 overall = 0
 
-for x in range(0, int(x_dist / step_size + 1)):
+for x in range(0, int(x_dist / step_size )):
 
-    for y in range(0, int(y_dist / step_size + 1)):
+    for y in range(0, int(y_dist / step_size )):
 
         current_min_corner = [
             min_corner[0] + step_size * x,
