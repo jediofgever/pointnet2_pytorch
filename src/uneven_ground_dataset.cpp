@@ -63,13 +63,11 @@ UnevenGroudDataset::UnevenGroudDataset(
         device);
       at::Tensor label_tensor = extractPCLLabelsfromRGB(parted_cloud, num_point_per_batch, device);
 
-
       auto xyz = xyz_feature_tensor;
 
       if (use_normals_as_feature) {
         xyz = torch::cat({xyz, normal_feature_tensor}, 2);
       }
-
 
       if (i == 0) {
         xyz_ = xyz;
@@ -80,6 +78,7 @@ UnevenGroudDataset::UnevenGroudDataset(
       }
     }
   }
+  
   std::cout << "UnevenGroudDataset: shape of input data xyz_ " << xyz_.sizes() << std::endl;
   std::cout << "UnevenGroudDataset: shape of input labels labels_" << labels_.sizes() <<
     std::endl;
