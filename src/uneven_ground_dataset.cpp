@@ -52,14 +52,15 @@ UnevenGroudDataset::UnevenGroudDataset(Parameters params)
     // DOWNSAMPLE IF REQUESTED
     if (params.downsample_leaf_size > 0.0) {
       cloud = downsampleInputCloud(cloud, params.downsample_leaf_size);
-      std::cout << "UnevenGroudDataset: Downsampled has points: " << cloud->points.size() <<
+      std::cout << "UnevenGroudDataset: Downsampled cloud has points: " << cloud->points.size() <<
         std::endl;
     }
 
     // PART CLOUDS INTO SMALLER GRIDS
     auto parted_clouds = partitionateCloud(cloud, params.partition_step_size);
 
-    std::cout << "UnevenGroudDataset: Divided cloud into parts: " << parted_clouds.size() <<
+
+    std::cout << "UnevenGroudDataset: Divided cloud into parts:" << parted_clouds.size() <<
       std::endl;
 
     // NOW PROCESS ALL OF THESE CLOUD GRIDS
@@ -121,13 +122,14 @@ UnevenGroudDataset::UnevenGroudDataset(Parameters params)
     }
   }
 
+
   std::cout << "UnevenGroudDataset: shape of input data xyz_ " << xyz_.sizes() << std::endl;
-  std::cout << "UnevenGroudDataset: shape of input labels labels_" << labels_.sizes() << std::endl;
+  std::cout << "UnevenGroudDataset: shape of input labels labels_ " << labels_.sizes() << std::endl;
 }
 
 UnevenGroudDataset::~UnevenGroudDataset()
 {
-  std::cout << "UnevenGroudDataset: Destroying." << xyz_.sizes() << std::endl;
+  std::cout << "UnevenGroudDataset : Destroying. " << xyz_.sizes() << std::endl;
 }
 
 torch::data::Example<at::Tensor, at::Tensor> UnevenGroudDataset::get(size_t index)
@@ -254,8 +256,8 @@ std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> UnevenGroudDataset::partitio
   pcl::getMinMax3D<pcl::PointXYZRGB>(*inputCloud, min_pt, max_pt);
   auto x_dist = std::abs(max_pt.x - min_pt.x);
   auto y_dist = std::abs(max_pt.y - min_pt.y);
-  for (int x = 0; x < static_cast<int>(y_dist / step + 1); x++) {
-    for (int y = 0; y < static_cast<int>(y_dist / step + 1); y++) {
+  for (int x = 0; x < static_cast<int>(y_dist / step ); x++) {
+    for (int y = 0; y < static_cast<int>(y_dist / step ); y++) {
       pcl::CropBox<pcl::PointXYZRGB> crop_box;
       crop_box.setInputCloud(inputCloud);
       Eigen::Vector4f current_min_corner(
