@@ -107,7 +107,7 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr uniformly_sample_cloud(
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr uniformly_sampled_cloud(
     new pcl::PointCloud<pcl::PointXYZRGB>);
   // Uniform sampling object.
-  pcl::UniformSampling<pcl::PointXYZRGB> filter(true);
+  pcl::UniformSampling<pcl::PointXYZRGB> filter();
   filter.setInputCloud(cloud);
   filter.setRadiusSearch(radius);
   // We need an additional object to store the indices of surviving points.
@@ -265,50 +265,6 @@ double max_energy_gap_in_cloud(
   double max_energy_gap = m * 9.82 * std::abs(upper_bound_point.z - lower_bound_point.z) +
     0.5 * m * std::pow(v, 2);
   return max_energy_gap;
-}
-
-void pcl_to_cv_mat(
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, bool is_cloud_normalized, int image_dim)
-{
-  if (!cloud->empty() ) {
-
-    auto image = cv::Mat(image_dim * 2, image_dim * 2, CV_8UC3);
-    for (auto && curr_point : cloud->points) {
-      if (is_cloud_normalized) {
-        // Normilized cloud is in between :[-1.0 , 1.0]
-        curr_point.y += 1.0;
-        curr_point.x += 1.0;
-      }
-      image.at<cv::Vec3b>(
-        curr_point.y * static_cast<double>(image_dim),
-        curr_point.x * static_cast<double>(image_dim))[0] = curr_point.r;
-      image.at<cv::Vec3b>(
-        curr_point.y * static_cast<double>(image_dim),
-        curr_point.x * static_cast<double>(image_dim))[1] = curr_point.r;
-      image.at<cv::Vec3b>(
-        curr_point.y * static_cast<double>(image_dim),
-        curr_point.x * static_cast<double>(image_dim))[2] = curr_point.r;
-    }
-
-    cv::imwrite("../data/i.png", image);
-
-    cv::Mat img_gray;
-    cv::cvtColor(image, img_gray, cv::COLOR_BGR2GRAY);
-    cv::Mat thresh;
-    cv::threshold(img_gray, thresh, 20, 255, cv::THRESH_BINARY);
-
-    cv::Mat element = cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(5, 5));
-    cv::dilate(thresh, thresh, element);
-
-    std::vector<std::vector<cv::Point>> contours;
-    std::vector<cv::Vec4i> hierarchy;
-    cv::findContours(thresh, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_NONE);
-    // draw contours on the original image
-    cv::Mat image_copy = image.clone();
-    cv::drawContours(image_copy, contours, 1, cv::Scalar(0, 255, 0), 1);
-    cv::imshow("None approximation", image_copy);
-    cv::waitKey(0);
-  }
 }
 
 }  // namespace cost_regression_utils

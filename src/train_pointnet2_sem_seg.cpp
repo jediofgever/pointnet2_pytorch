@@ -22,11 +22,11 @@ int main()
 
   // CONSTS
   double kPARTITION_STEP = 25.0;
-  const double kDOWNSAMPLE_VOXEL_SIZE = 0.4;
-  const double kNORMAL_ESTIMATION_RADIUS = 0.6;
-  const int kBATCH_SIZE = 6;
-  const int kEPOCHS = 32;
-  int kN = 2048;
+  const double kDOWNSAMPLE_VOXEL_SIZE = 0.0;
+  const double kNORMAL_ESTIMATION_RADIUS =1.6;
+  const int kBATCH_SIZE = 32;
+  const int kEPOCHS = 24;
+  int kN = 4096;
   bool kUSE_NORMALS = true;
 
   // use dynamic LR
@@ -37,7 +37,7 @@ int main()
   torch::Device cuda_device = torch::kCUDA;
 
   uneven_ground_dataset::UnevenGroudDataset::Parameters params;
-  params.root_dir = "/home/atas/pointnet2_pytorch/data";
+  params.root_dir = "/home/pc/pointnet2_pytorch/data";
   params.device = cuda_device;
   params.num_point_per_batch = kN;
   params.downsample_leaf_size = kDOWNSAMPLE_VOXEL_SIZE;

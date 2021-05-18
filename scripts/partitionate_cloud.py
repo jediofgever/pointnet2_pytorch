@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 root = "../data"
-pcd = o3d.io.read_point_cloud(os.path.join(root, "raw","train_2.pcd"))
+pcd = o3d.io.read_point_cloud(os.path.join(root, "train","train0.pcd"))
 
 aabb = pcd.get_axis_aligned_bounding_box()
 aabb.color = (1, 0, 0)
@@ -18,7 +18,7 @@ print(box_corners)
 x_dist = abs(max_corner[0] - min_corner[0])
 y_dist = abs(max_corner[1] - min_corner[1])
 
-step_size = 40
+step_size = 20
 
 geometries = []
 
