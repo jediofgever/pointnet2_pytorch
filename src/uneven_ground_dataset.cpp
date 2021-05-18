@@ -43,7 +43,7 @@ UnevenGroudDataset::UnevenGroudDataset(
     if (downsample_leaf_size_ > 0.0) {
       cloud = downsampleInputCloud(cloud, downsample_leaf_size_);
     }
-    auto parted_clouds = partitionateCloud(cloud, 50.0);
+    auto parted_clouds = partitionateCloud(cloud, 25.0);
 
     for (auto && parted_cloud : parted_clouds) {
       pcl::PointCloud<pcl::Normal> normals;
@@ -52,7 +52,6 @@ UnevenGroudDataset::UnevenGroudDataset(
         normals = estimateCloudNormals(parted_cloud, 0.5);
       }
       parted_cloud = normalizeCloud(parted_cloud);
-      pcl::io::savePCDFile("../data/nomred.pcd", *parted_cloud, false);
 
       at::Tensor xyz_feature_tensor = pclXYZFeature2Tensor(
         parted_cloud,
@@ -251,10 +250,9 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr UnevenGroudDataset::normalizeCloud(
 
   Eigen::Vector4f max_point, pivot_point;
   pcl::getMaxDistance<pcl::PointXYZRGB>(*normalized_cloud, pivot_point, max_point);
-  float dist = std::sqrt(
-    std::pow(max_point.x(), 2) +
-    std::pow(max_point.y(), 2) +
-    std::pow(max_point.z(), 2));
+
+  auto max_distaxis = std::max(std::abs(max_point.x()), std::abs(max_point.y()));
+  float dist = std::sqrt(std::pow(max_distaxis, 2));
 
   for (auto && i : normalized_cloud->points) {
     i.x /= dist;
