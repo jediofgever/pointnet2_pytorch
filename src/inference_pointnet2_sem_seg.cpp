@@ -22,21 +22,15 @@ int main()
   pointnet2_utils::check_avail_device();
 
   // CONSTS
-  const double kDOWNSAMPLE_VOXEL_SIZE = 0.0;
+  double kPARTITION_STEP = 25.0;
+  const double kDOWNSAMPLE_VOXEL_SIZE = 0.4;
+  const double kNORMAL_ESTIMATION_RADIUS = 0.6;
   const int kBATCH_SIZE = 8;
   const int kEPOCHS = 32;
   int kN = 2048;
   bool kUSE_NORMALS = true;
 
-  // use dynamic LR
-  double learning_rate = 0.01;
-  const size_t learning_rate_decay_frequency = 8;
-  const double learning_rate_decay_factor = 1.0 / 5.0;
-
   torch::Device cuda_device = torch::kCUDA;
-
-  // Training datset
-  std::string train_root_dir = "/home/atas/pointnet2_pytorch/data";
 
   uneven_ground_dataset::UnevenGroudDataset::Parameters params;
   params.root_dir = "/home/atas/pointnet2_pytorch/data";
@@ -44,19 +38,10 @@ int main()
   params.num_point_per_batch = kN;
   params.downsample_leaf_size = kDOWNSAMPLE_VOXEL_SIZE;
   params.use_normals_as_feature = kUSE_NORMALS;
-  params.normal_estimation_radius = 0.6;
-  params.partition_step_size = 25.0;
+  params.normal_estimation_radius = kNORMAL_ESTIMATION_RADIUS;
+  params.partition_step_size = kPARTITION_STEP;
   params.split = "test";
-  params.is_training = true;
-
-  torch::jit::script::Module module;
-  try {
-    // Deserialize the ScriptModule from a file using torch::jit::load().
-    module = torch::jit::load("/home/atas/pointnet2_pytorch/log/best_loss_model.pt");
-  } catch (const c10::Error & e) {
-    std::cerr << "error loading the model\n";
-    return -1;
-  }
+  params.is_training = false;
 
   auto test_dataset = uneven_ground_dataset::UnevenGroudDataset(params)
     .map(torch::data::transforms::Stack<>());
@@ -65,12 +50,20 @@ int main()
     torch::data::make_data_loader<torch::data::samplers::RandomSampler>(
     std::move(test_dataset), kBATCH_SIZE);
 
-
   std::cout << "Beginning Testing." << std::endl;
+
+  // initialize net and optimizer
+  pointnet2_sem_seg::PointNet2SemSeg net;
+
+  torch::serialize::InputArchive arc;
+  arc.load_from("/home/atas/pointnet2_pytorch/log/best_loss_model.pt", cuda_device);
+
+  net.load(arc);
+  net.to(cuda_device);
 
   // Test the model
   torch::NoGradGuard no_grad;
-  module.eval();
+  net.eval();
 
   double loss_numerical = 0.0;
   int total_samples_in_batch = 0;
@@ -86,15 +79,12 @@ int main()
     // Permute the channels so that we have  : [B,C,N]
     xyz = xyz.permute({0, 2, 1});
 
-    std::vector<torch::jit::IValue> inputs;
-    inputs.push_back(xyz);
+    auto net_output = net.forward(xyz);
 
-    auto net_output = module.forward(inputs).toTensorVector();
-
-    at::IntArrayRef output_shape = net_output[0].sizes();
+    at::IntArrayRef output_shape = net_output.first.sizes();
     at::IntArrayRef labels_shape = labels.sizes();
 
-    auto predicted_label = torch::max(net_output[0], 2);
+    auto predicted_label = torch::max(net_output.first, 2);
 
     total_samples_in_batch += output_shape[0];
     auto correct_predictions = torch::eq(
@@ -108,7 +98,7 @@ int main()
 
     // Out: [B * N, num_classes]
     // label: [B * N]
-    net_output[0] = net_output[0].reshape(
+    net_output.first = net_output.first.reshape(
       {output_shape[0] * output_shape[1],
         output_shape[2]});
 
@@ -117,10 +107,12 @@ int main()
         labels_shape[1] *
         labels_shape[2]});
 
-    auto loss = torch::nll_loss(net_output[0], labels);
+    auto loss = torch::nll_loss(net_output.first, labels);
 
     // Output the loss and checkpoint every 100 batches.
     loss_numerical += loss.item<float>();
+
+    std::cout << "Processing a batch" << std::endl;
   }
 
   overall_batch_accu = static_cast<double>(num_correct_points) /

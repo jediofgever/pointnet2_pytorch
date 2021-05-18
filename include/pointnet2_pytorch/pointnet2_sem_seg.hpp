@@ -45,7 +45,6 @@ protected:
   torch::nn::Dropout drop1_;
   torch::nn::Conv1d conv2_;
 
-
 };
 
 

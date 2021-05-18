@@ -21,7 +21,9 @@ int main()
   pointnet2_utils::check_avail_device();
 
   // CONSTS
-  const double kDOWNSAMPLE_VOXEL_SIZE = 0.0;
+  double kPARTITION_STEP = 25.0;
+  const double kDOWNSAMPLE_VOXEL_SIZE = 0.4;
+  const double kNORMAL_ESTIMATION_RADIUS = 0.6;
   const int kBATCH_SIZE = 8;
   const int kEPOCHS = 32;
   int kN = 2048;
@@ -40,8 +42,8 @@ int main()
   params.num_point_per_batch = kN;
   params.downsample_leaf_size = kDOWNSAMPLE_VOXEL_SIZE;
   params.use_normals_as_feature = kUSE_NORMALS;
-  params.normal_estimation_radius = 0.6;
-  params.partition_step_size = 25.0;
+  params.normal_estimation_radius = kNORMAL_ESTIMATION_RADIUS;
+  params.partition_step_size = kPARTITION_STEP;
   params.split = "train";
   params.is_training = true;
 
@@ -152,6 +154,6 @@ int main()
     }
   }
   std::cout << "Pointnet2 semantic segmentation training Successful." << std::endl;
- 
+
   return EXIT_SUCCESS;
 }

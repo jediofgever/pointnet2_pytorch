@@ -47,13 +47,13 @@ UnevenGroudDataset::UnevenGroudDataset(Parameters params)
     // DOWNSAMPLE IF REQUESTED
     if (params.downsample_leaf_size > 0.0) {
       cloud = downsampleInputCloud(cloud, params.downsample_leaf_size);
+      std::cout << "Downsampled Cloud: num of Points:  " << cloud->points.size() << std::endl;
     }
 
     auto parted_clouds = partitionateCloud(cloud, params.partition_step_size);
 
     for (auto && parted_cloud : parted_clouds) {
       pcl::PointCloud<pcl::Normal> normals;
-
       if (params.use_normals_as_feature) {
         normals = estimateCloudNormals(parted_cloud, params.normal_estimation_radius);
       }
@@ -87,7 +87,7 @@ UnevenGroudDataset::UnevenGroudDataset(Parameters params)
         xyz = torch::cat({xyz, normals_tensor}, 2);
       }
 
-      if (i == 0) {
+      if (!xyz_.sizes().front()) {
         xyz_ = xyz;
         labels_ = label_tensor;
         non_normalized_xyz_ = original_xyz;
