@@ -19,6 +19,13 @@ find_package(OpenCV REQUIRED COMPONENTS opencv_highgui CONFIG)
 list(APPEND CMAKE_MODULE_PATH "/usr/local/lib/cmake/OpenVDB")
 find_package(OpenVDB REQUIRED)
 
+find_package(OpenMP)
+if (OPENMP_FOUND)
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+endif()
+
 include_directories(
     include
     ${PCL_INCLUDE_DIRS}
@@ -41,7 +48,7 @@ add_executable(train_pointnet2_sem_seg src/train_pointnet2_sem_seg.cpp
                                        src/pointnet2_core.cpp
                                        src/pointnet2_utils.cpp
                                        src/uneven_ground_dataset.cpp)
-target_link_libraries(train_pointnet2_sem_seg ${PCL_LIBRARIES} ${TORCH_LIBRARIES} stdc++fs)
+target_link_libraries(train_pointnet2_sem_seg ${PCL_LIBRARIES} ${TORCH_LIBRARIES} stdc++fs OpenMP::OpenMP_CXX)
 
 add_executable(regress_costs  src/regress_costs.cpp
                               src/cost_regression_utils.cpp

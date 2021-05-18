@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include <pointnet2_pytorch/uneven_ground_dataset.hpp>
+#include <pcl/common/common.h>
+#include <pcl/filters/crop_box.h>
 
 namespace uneven_ground_dataset
 {
@@ -30,46 +32,58 @@ UnevenGroudDataset::UnevenGroudDataset(
     filenames_.push_back(entry.path());
   }
 
+
   for (int i = 0; i < filenames_.size(); i++) {
-
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
-    pcl::PointCloud<pcl::Normal> normals;
-
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
     if (!pcl::io::loadPCDFile(filenames_[i], *cloud)) {
       std::cout << "Gonna load a cloud with " << cloud->points.size() << " points" << std::endl;
     } else {
       std::cerr << "Could not read PCD file: " << filenames_[i] << std::endl;
     }
-
-    *cloud = downsampleInputCloud(cloud, downsample_leaf_size_);
-
-    if (use_normals_as_feature) {
-      normals = estimateCloudNormals(cloud, 0.5);
+    if (downsample_leaf_size_ > 0.0) {
+      cloud = downsampleInputCloud(cloud, downsample_leaf_size_);
     }
+    auto parted_clouds = partitionateCloud(cloud, 50.0);
 
-    at::Tensor xyz_feature_tensor = pclXYZFeature2Tensor(
-      cloud,
-      num_point_per_batch,
-      device);
-    at::Tensor normal_feature_tensor = pclNormalFeature2Tensor(
-      normals,
-      num_point_per_batch,
-      device);
-    at::Tensor label_tensor = extractPCLLabelsfromRGB(cloud, num_point_per_batch, device);
+    for (auto && parted_cloud : parted_clouds) {
+      pcl::PointCloud<pcl::Normal> normals;
 
-    auto xyz = torch::cat({xyz_feature_tensor, normal_feature_tensor}, 2);
+      if (use_normals_as_feature) {
+        normals = estimateCloudNormals(parted_cloud, 0.5);
+      }
+      parted_cloud = normalizeCloud(parted_cloud);
+      pcl::io::savePCDFile("../data/nomred.pcd", *parted_cloud, false);
 
-    if (i == 0) {
-      xyz_ = xyz;
-      labels_ = label_tensor;
-    } else {
-      xyz_ = torch::cat({xyz_, xyz}, 0);
-      labels_ = torch::cat({labels_, label_tensor}, 0);
+      at::Tensor xyz_feature_tensor = pclXYZFeature2Tensor(
+        parted_cloud,
+        num_point_per_batch,
+        device);
+      at::Tensor normal_feature_tensor = pclNormalFeature2Tensor(
+        normals,
+        num_point_per_batch,
+        device);
+      at::Tensor label_tensor = extractPCLLabelsfromRGB(parted_cloud, num_point_per_batch, device);
+
+
+      auto xyz = xyz_feature_tensor;
+
+      if (use_normals_as_feature) {
+        xyz = torch::cat({xyz, normal_feature_tensor}, 2);
+      }
+
+
+      if (i == 0) {
+        xyz_ = xyz;
+        labels_ = label_tensor;
+      } else {
+        xyz_ = torch::cat({xyz_, xyz}, 0);
+        labels_ = torch::cat({labels_, label_tensor}, 0);
+      }
     }
   }
-
   std::cout << "UnevenGroudDataset: shape of input data xyz_ " << xyz_.sizes() << std::endl;
-  std::cout << "UnevenGroudDataset: shape of input labels labels_" << labels_.sizes() << std::endl;
+  std::cout << "UnevenGroudDataset: shape of input labels labels_" << labels_.sizes() <<
+    std::endl;
 }
 
 UnevenGroudDataset::~UnevenGroudDataset()
@@ -86,19 +100,19 @@ torch::optional<size_t> UnevenGroudDataset::size() const
   return xyz_.sizes().front();
 }
 
-pcl::PointCloud<pcl::PointXYZRGB> UnevenGroudDataset::downsampleInputCloud(
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr inputCloud, double downsmaple_leaf_size)
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr UnevenGroudDataset::downsampleInputCloud(
+  const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & inputCloud, double downsmaple_leaf_size)
 {
   pcl::VoxelGrid<pcl::PointXYZRGB> voxelGrid;
   voxelGrid.setInputCloud(inputCloud);
   voxelGrid.setLeafSize(downsmaple_leaf_size, downsmaple_leaf_size, downsmaple_leaf_size);
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr downsampledCloud(new pcl::PointCloud<pcl::PointXYZRGB>());
   voxelGrid.filter(*downsampledCloud);
-  return *downsampledCloud;
+  return downsampledCloud;
 }
 
 pcl::PointCloud<pcl::Normal> UnevenGroudDataset::estimateCloudNormals(
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr inputCloud, double radius)
+  const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & inputCloud, double radius)
 {
   pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
   pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> normal_estimator;
@@ -113,11 +127,13 @@ pcl::PointCloud<pcl::Normal> UnevenGroudDataset::estimateCloudNormals(
 }
 
 at::Tensor UnevenGroudDataset::pclXYZFeature2Tensor(
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int N, torch::Device device)
+  const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & cloud, int N, torch::Device device)
 {
   int B = std::floor(cloud->points.size() / N);
   int C = 3;
   at::Tensor feature_tensor = torch::zeros({B, N, C}, device);
+
+  #pragma omp parallel for
   for (int i = 0; i < B; i++) {
     for (int j = 0; j < N; j++) {
       if (i * N + j < cloud->points.size()) {
@@ -137,11 +153,13 @@ at::Tensor UnevenGroudDataset::pclXYZFeature2Tensor(
 }
 
 at::Tensor UnevenGroudDataset::pclNormalFeature2Tensor(
-  pcl::PointCloud<pcl::Normal> normals, int N, torch::Device device)
+  const pcl::PointCloud<pcl::Normal> & normals, int N, torch::Device device)
 {
   int B = std::floor(normals.points.size() / N);
   int C = 3;
   at::Tensor feature_tensor = torch::zeros({B, N, C}, device);
+
+  #pragma omp parallel for
   for (int i = 0; i < B; i++) {
     for (int j = 0; j < N; j++) {
       if (i * N + j < normals.points.size()) {
@@ -161,11 +179,13 @@ at::Tensor UnevenGroudDataset::pclNormalFeature2Tensor(
 }
 
 at::Tensor UnevenGroudDataset::extractPCLLabelsfromRGB(
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr inputCloud, int N, torch::Device device)
+  const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & inputCloud, int N, torch::Device device)
 {
   int B = std::floor(inputCloud->points.size() / N);
   // Two classes, traversable and NONtraversable
   at::Tensor labels = torch::zeros({B, N, 1}, device);
+
+  #pragma omp parallel for
   for (int i = 0; i < B; i++) {
     for (int j = 0; j < N; j++) {
       pcl::PointXYZRGB point = inputCloud->points[i * N + j];
@@ -181,5 +201,68 @@ at::Tensor UnevenGroudDataset::extractPCLLabelsfromRGB(
   return labels;
 }
 
+std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> UnevenGroudDataset::partitionateCloud(
+  const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & inputCloud, double step)
+{
+  std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> parted_clouds;
+  pcl::PointXYZRGB min_pt, max_pt;
+  pcl::getMinMax3D<pcl::PointXYZRGB>(*inputCloud, min_pt, max_pt);
+  auto x_dist = std::abs(max_pt.x - min_pt.x);
+  auto y_dist = std::abs(max_pt.y - min_pt.y);
+  for (int x = 0; x < static_cast<int>(y_dist / step + 1); x++) {
+    for (int y = 0; y < static_cast<int>(y_dist / step + 1); y++) {
+      pcl::CropBox<pcl::PointXYZRGB> crop_box;
+      crop_box.setInputCloud(inputCloud);
+      Eigen::Vector4f current_min_corner(
+        min_pt.x + step * x,
+        min_pt.y + step * y,
+        min_pt.z, 1);
+      Eigen::Vector4f current_max_corner(
+        current_min_corner.x() + step,
+        current_min_corner.y() + step,
+        max_pt.z, 1);
+      crop_box.setMin(current_min_corner);
+      crop_box.setMax(current_max_corner);
+      pcl::PointCloud<pcl::PointXYZRGB>::Ptr cropped_pcd(
+        new pcl::PointCloud<pcl::PointXYZRGB>());
+      crop_box.filter(*cropped_pcd);
+      parted_clouds.push_back(cropped_pcd);
+    }
+  }
+  return parted_clouds;
+}
+
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr UnevenGroudDataset::normalizeCloud(
+  const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & inputCloud)
+{
+  Eigen::Vector4f centroid;
+  pcl::compute3DCentroid<pcl::PointXYZRGB>(*inputCloud, centroid);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr normalized_cloud(
+    new pcl::PointCloud<pcl::PointXYZRGB>());
+
+  for (auto && i : inputCloud->points) {
+    pcl::PointXYZRGB p;
+    p = i;
+    p.x -= centroid.x();
+    p.y -= centroid.y();
+    p.z -= centroid.z();
+    normalized_cloud->push_back(p);
+  }
+
+  Eigen::Vector4f max_point, pivot_point;
+  pcl::getMaxDistance<pcl::PointXYZRGB>(*normalized_cloud, pivot_point, max_point);
+  float dist = std::sqrt(
+    std::pow(max_point.x(), 2) +
+    std::pow(max_point.y(), 2) +
+    std::pow(max_point.z(), 2));
+
+  for (auto && i : normalized_cloud->points) {
+    i.x /= dist;
+    i.y /= dist;
+    i.z /= dist;
+  }
+
+  return normalized_cloud;
+}
 
 }  // namespace uneven_ground_dataset

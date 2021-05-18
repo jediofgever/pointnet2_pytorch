@@ -35,7 +35,7 @@ int main()
   torch::Device cuda_device = torch::kCUDA;
 
   // Training datset
-  std::string train_root_dir = "/home/pc/pointnet2_pytorch/data/train";
+  std::string train_root_dir = "/home/atas/pointnet2_pytorch/data/raw";
   auto train_dataset = uneven_ground_dataset::UnevenGroudDataset(
     train_root_dir, cuda_device, kN, kDOWNSAMPLE_VOXEL_SIZE, kUSE_NORMALS)
     .map(torch::data::transforms::Stack<>());
@@ -43,7 +43,8 @@ int main()
     torch::data::make_data_loader<torch::data::samplers::RandomSampler>(
     std::move(train_dataset), kBATCH_SIZE);
   // testing datset
-  std::string test_root_dir = "/home/pc/pointnet2_pytorch/data/test";
+
+  /*std::string test_root_dir = "/home/atas/pointnet2_pytorch/data/test";
   auto test_dataset = uneven_ground_dataset::UnevenGroudDataset(
     test_root_dir, cuda_device, kN, kDOWNSAMPLE_VOXEL_SIZE, kUSE_NORMALS)
     .map(torch::data::transforms::Stack<>());
@@ -212,6 +213,6 @@ int main()
   std::cout << "Testing finished!" << std::endl;;
   std::cout << "Loss: " << loss_numerical << std::endl;
   std::cout << "Overall Accuracy: " << overall_batch_accu << std::endl;
-
+*/
   return EXIT_SUCCESS;
 }

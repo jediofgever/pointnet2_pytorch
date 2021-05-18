@@ -18,6 +18,9 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/search/impl/search.hpp>
+#include <pcl/octree/octree_search.h>
+#include <pcl/filters/uniform_sampling.h>
+
 
 namespace uneven_ground_dataset
 {
@@ -78,8 +81,8 @@ public:
    * @param downsample_leaf_size
    * @return pcl::PointCloud<pcl::PointXYZRGB>
    */
-  pcl::PointCloud<pcl::PointXYZRGB> downsampleInputCloud(
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr inputCloud, double downsample_leaf_size);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr downsampleInputCloud(
+    const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & inputCloud, double downsample_leaf_size);
 
   /**
    * @brief estimate and retun normals of inputCloud
@@ -89,7 +92,7 @@ public:
    * @return pcl::PointCloud<pcl::Normal>
    */
   pcl::PointCloud<pcl::Normal> estimateCloudNormals(
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr inputCloud, double radius);
+    const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & inputCloud, double radius);
 
   /**
    * @brief Construct a new pcl X Y Z Feature2 Tensor object
@@ -99,7 +102,7 @@ public:
    * @param device
    */
   at::Tensor pclXYZFeature2Tensor(
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int N, torch::Device device);
+    const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & cloud, int N, torch::Device device);
 
   /**
   * @brief Construct a new pcl X Y Z Feature2 Tensor object
@@ -109,7 +112,7 @@ public:
   * @param device
   */
   at::Tensor pclNormalFeature2Tensor(
-    pcl::PointCloud<pcl::Normal> normals, int N, torch::Device device);
+    const pcl::PointCloud<pcl::Normal> & normals, int N, torch::Device device);
 
   /**
    * @brief
@@ -120,7 +123,25 @@ public:
    * @return at::Tensor
    */
   at::Tensor extractPCLLabelsfromRGB(
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr inputCloud, int N, torch::Device device);
+    const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & inputCloud, int N, torch::Device device);
+
+  /**
+   * @brief part the cloud with given step
+   *
+   * @param inputCloud
+   * @param step
+   */
+  std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> partitionateCloud(
+    const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & inputCloud, double step);
+
+  /**
+   * @brief
+   *
+   * @param inputCloud
+   * @return pcl::PointCloud<pcl::PointXYZRGB>::Ptr
+   */
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr  normalizeCloud(
+    const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & inputCloud);
 
 private:
   std::string root_dir_;
