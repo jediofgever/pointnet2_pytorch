@@ -256,8 +256,8 @@ std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> UnevenGroudDataset::partitio
   pcl::getMinMax3D<pcl::PointXYZRGB>(*inputCloud, min_pt, max_pt);
   auto x_dist = std::abs(max_pt.x - min_pt.x);
   auto y_dist = std::abs(max_pt.y - min_pt.y);
-  for (int x = 0; x < static_cast<int>(y_dist / step ); x++) {
-    for (int y = 0; y < static_cast<int>(y_dist / step ); y++) {
+  for (int x = 0; x < static_cast<int>(y_dist / step +1 ); x++) {
+    for (int y = 0; y < static_cast<int>(y_dist / step+1 ); y++) {
       pcl::CropBox<pcl::PointXYZRGB> crop_box;
       crop_box.setInputCloud(inputCloud);
       Eigen::Vector4f current_min_corner(

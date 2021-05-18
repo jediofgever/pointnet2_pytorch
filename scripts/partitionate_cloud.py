@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 root = "../data"
-pcd = o3d.io.read_point_cloud(os.path.join(root, "train","train0.pcd"))
+pcd = o3d.io.read_point_cloud(os.path.join(root, "experiments","uneven_world.pcd"))
 
 aabb = pcd.get_axis_aligned_bounding_box()
 aabb.color = (1, 0, 0)
@@ -18,7 +18,7 @@ print(box_corners)
 x_dist = abs(max_corner[0] - min_corner[0])
 y_dist = abs(max_corner[1] - min_corner[1])
 
-step_size = 20
+step_size = 25
 
 geometries = []
 
@@ -31,9 +31,9 @@ test_index = 0
 
 overall = 0
 
-for x in range(0, int(x_dist / step_size )):
+for x in range(0, int(x_dist / step_size+1 )):
 
-    for y in range(0, int(y_dist / step_size )):
+    for y in range(0, int(y_dist / step_size+1 )):
 
         current_min_corner = [
             min_corner[0] + step_size * x,

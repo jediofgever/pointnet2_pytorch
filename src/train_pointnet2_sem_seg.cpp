@@ -21,12 +21,12 @@ int main()
   pointnet2_utils::check_avail_device();
 
   // CONSTS
-  double kPARTITION_STEP = 25.0;
-  const double kDOWNSAMPLE_VOXEL_SIZE = 0.0;
-  const double kNORMAL_ESTIMATION_RADIUS =1.6;
-  const int kBATCH_SIZE = 32;
+  double kPARTITION_STEP = 20.0;
+  const double kDOWNSAMPLE_VOXEL_SIZE = 0.2;
+  const double kNORMAL_ESTIMATION_RADIUS =1.0;
+  const int kBATCH_SIZE = 16;
   const int kEPOCHS = 16;
-  int kN = 4096;
+  int kN = 2048;
   bool kUSE_NORMALS = true;
 
   // use dynamic LR
@@ -65,6 +65,9 @@ int main()
 
   auto current_learning_rate = learning_rate;
 
+  double best_loss = INFINITY;
+
+
   // Train the precious
   for (int i = 0; i < kEPOCHS; i++) {
     // In a for loop you can now use your data.
@@ -73,8 +76,6 @@ int main()
     double num_correct_points = 0.0;
     int total_samples_in_batch = 0;
     int batch_counter = 0;
-
-    double best_loss = INFINITY;
 
     for (auto & batch : *train_dataset_loader) {
 
@@ -144,8 +145,8 @@ int main()
       std::cout << "Found Best Loss at epoch: " << i << std::endl;
       std::cout << "Saving model and optimizer..." << std::endl;
       try {
-        torch::save(net, "/home/atas/pointnet2_pytorch/log/best_loss_model.pt");
-        torch::save(optimizer, "/home/atas/pointnet2_pytorch/log/best_optim_model.pt");
+        torch::save(net, "/home/pc/pointnet2_pytorch/log/best_loss_model.pt");
+        torch::save(optimizer, "/home/pc/pointnet2_pytorch/log/best_optim_model.pt");
       } catch (const std::exception & e) {
         std::cout << "Failed to save model and optimizer..." << std::endl;
         std::cerr << e.what() << '\n';
