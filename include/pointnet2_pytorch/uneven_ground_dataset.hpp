@@ -170,7 +170,8 @@ public:
 private:
   at::Tensor xyz_;
   at::Tensor labels_;
-  at::Tensor non_normalized_xyz_;
+  // only positions
+  at::Tensor original_xyz_;
 };
 
 }  // namespace uneven_ground_dataset

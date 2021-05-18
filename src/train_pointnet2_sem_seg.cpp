@@ -24,7 +24,7 @@ int main()
   double kPARTITION_STEP = 25.0;
   const double kDOWNSAMPLE_VOXEL_SIZE = 0.4;
   const double kNORMAL_ESTIMATION_RADIUS = 0.6;
-  const int kBATCH_SIZE = 8;
+  const int kBATCH_SIZE = 6;
   const int kEPOCHS = 32;
   int kN = 2048;
   bool kUSE_NORMALS = true;
@@ -122,7 +122,7 @@ int main()
       // Output the loss and checkpoint every 100 batches.
       loss_numerical += loss.item<float>();
       batch_counter++;
-      std::cout << "Curr Batch" << batch_counter << std::endl;
+      std::cout << "Current Batch: " << batch_counter << " out of" << train_dataset.dataset().size() << std::endl;
     }
 
     // Decay learning rate

@@ -18,6 +18,7 @@
 
 namespace uneven_ground_dataset
 {
+
 UnevenGroudDataset::UnevenGroudDataset(Parameters params)
 {
   std::cout << "UnevenGroudDataset: given root directory is " << params.root_dir << std::endl;
@@ -30,36 +31,50 @@ UnevenGroudDataset::UnevenGroudDataset(Parameters params)
 
   std::vector<std::string> filenames;
   for (auto & entry : fs::directory_iterator(full_path)) {
-    std::cout << "UnevenGroudDataset: processing given file " << entry.path() << std::endl;
     filenames.push_back(entry.path());
   }
 
+  std::cout << "UnevenGroudDataset: Processing files in total: " << filenames.size() << std::endl;
+
   for (int i = 0; i < filenames.size(); i++) {
+
+    std::cout << "UnevenGroudDataset: Processing: " << filenames << std::endl;
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
     // LOAD FILE
     if (!pcl::io::loadPCDFile(filenames[i], *cloud)) {
-      std::cout << "Gonna load a cloud with " << cloud->points.size() << " points" << std::endl;
+      std::cout << "UnevenGroudDataset: Loading a cloud with " << cloud->points.size() <<
+        " points" << std::endl;
     } else {
-      std::cerr << "Could not read PCD file: " << filenames[i] << std::endl;
+      std::cerr << "UnevenGroudDataset: Could not read PCD file: " << filenames[i] << std::endl;
     }
 
     // DOWNSAMPLE IF REQUESTED
     if (params.downsample_leaf_size > 0.0) {
       cloud = downsampleInputCloud(cloud, params.downsample_leaf_size);
-      std::cout << "Downsampled Cloud: num of Points:  " << cloud->points.size() << std::endl;
+      std::cout << "UnevenGroudDataset: Downsampled has points: " << cloud->points.size() <<
+        std::endl;
     }
 
+    // PART CLOUDS INTO SMALLER GRIDS
     auto parted_clouds = partitionateCloud(cloud, params.partition_step_size);
 
+    std::cout << "UnevenGroudDataset: Divided cloud into parts: " << parted_clouds.size() <<
+      std::endl;
+
+    // NOW PROCESS ALL OF THESE CLOUD GRIDS
     for (auto && parted_cloud : parted_clouds) {
+
+      // NORMALS MIGHT BE USED AS FEATURES
       pcl::PointCloud<pcl::Normal> normals;
       if (params.use_normals_as_feature) {
         normals = estimateCloudNormals(parted_cloud, params.normal_estimation_radius);
       }
 
+      // WHEN TRAINING AND TESTING WE NORMALIZE CLOUD GRIDS TO [-1.0 , 1.0] RANGE
       auto normalized_parted_cloud = normalizeCloud(parted_cloud);
 
+      // COMBINE ALL FEATURES TO XYZ_ TENSOR
       at::Tensor normalized_xyz_tensor = pclXYZFeature2Tensor(
         normalized_parted_cloud,
         params.num_point_per_batch,
@@ -70,31 +85,38 @@ UnevenGroudDataset::UnevenGroudDataset(Parameters params)
         params.num_point_per_batch,
         params.device);
 
-      at::Tensor label_tensor = extractPCLLabelsfromRGB(
+      // PUSH GROUND TRUTH LABELS TO LABELS_
+      at::Tensor labels = extractPCLLabelsfromRGB(
         parted_cloud,
         params.num_point_per_batch,
         params.device);
 
+      // NON NORMALIZED XYZ(positions) ARE STORED AS MEMBER VAR, IN CASE USER WANT TO ACCESS ORIGINAL DATA
       at::Tensor original_xyz_tensor = pclXYZFeature2Tensor(
         parted_cloud,
         params.num_point_per_batch,
         params.device);
 
+      // DEFAULT FETAURES ARE JUST XYZ(positions)
       auto xyz = normalized_xyz_tensor;
+
+      // ACCUMULATE ORIGINAL XYZ(POSTIIONS)
       auto original_xyz = original_xyz_tensor;
 
+      //COMBINE NORMALS TO XYZ_ ONLY IF REQUESTED
       if (params.use_normals_as_feature) {
         xyz = torch::cat({xyz, normals_tensor}, 2);
       }
 
+      // INIIALLY ASSIGN XYZ_, LABELS_ AND
       if (!xyz_.sizes().front()) {
         xyz_ = xyz;
-        labels_ = label_tensor;
-        non_normalized_xyz_ = original_xyz;
+        labels_ = labels;
+        original_xyz_ = original_xyz;
       } else {
         xyz_ = torch::cat({xyz_, xyz}, 0);
-        labels_ = torch::cat({labels_, label_tensor}, 0);
-        non_normalized_xyz_ = torch::cat({non_normalized_xyz_, original_xyz}, 0);
+        labels_ = torch::cat({labels_, labels}, 0);
+        original_xyz_ = torch::cat({original_xyz_, original_xyz}, 0);
       }
     }
   }
@@ -105,6 +127,7 @@ UnevenGroudDataset::UnevenGroudDataset(Parameters params)
 
 UnevenGroudDataset::~UnevenGroudDataset()
 {
+  std::cout << "UnevenGroudDataset: Destroying." << xyz_.sizes() << std::endl;
 }
 
 torch::data::Example<at::Tensor, at::Tensor> UnevenGroudDataset::get(size_t index)
@@ -114,7 +137,7 @@ torch::data::Example<at::Tensor, at::Tensor> UnevenGroudDataset::get(size_t inde
 
 at::Tensor UnevenGroudDataset::get_non_normalized_data()
 {
-  return non_normalized_xyz_;
+  return original_xyz_;
 }
 
 torch::optional<size_t> UnevenGroudDataset::size() const
