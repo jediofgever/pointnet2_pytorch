@@ -15,8 +15,8 @@ find_package(Torch REQUIRED)
 find_package(CUDA REQUIRED)
 find_package(CUDNN REQUIRED)
 
-#list(APPEND CMAKE_MODULE_PATH "/usr/local/lib/cmake/OpenVDB")
-#find_package(OpenVDB REQUIRED)
+list(APPEND CMAKE_MODULE_PATH "/usr/local/lib/cmake/OpenVDB")
+find_package(OpenVDB REQUIRED)
 
 find_package(OpenMP)
 if (OPENMP_FOUND)
@@ -56,20 +56,20 @@ add_executable(inference_pointnet2_sem_seg src/inference_pointnet2_sem_seg.cpp
                                        src/uneven_ground_dataset.cpp)
 target_link_libraries(inference_pointnet2_sem_seg ${PCL_LIBRARIES} ${TORCH_LIBRARIES} stdc++fs OpenMP::OpenMP_CXX)
 
-#add_executable(regress_costs  src/regress_costs.cpp
-#                              src/cost_regression_utils.cpp
-#                              src/pointnet2_utils.cpp)
-#target_link_libraries(regress_costs ${PCL_LIBRARIES} ${TORCH_LIBRARIES} ${OpenCV_LIBRARIES})
+add_executable(regress_costs  src/regress_costs.cpp
+                              src/cost_regression_utils.cpp
+                              src/pointnet2_utils.cpp)
+target_link_libraries(regress_costs ${PCL_LIBRARIES} ${TORCH_LIBRARIES} ${OpenCV_LIBRARIES})
 
-#add_executable(test_openvdb  test/test_openvdb.cpp)
-#target_link_libraries(test_openvdb OpenVDB::openvdb ${PCL_LIBRARIES})
+add_executable(test_openvdb  test/test_openvdb.cpp)
+target_link_libraries(test_openvdb OpenVDB::openvdb ${PCL_LIBRARIES})
 
 install(TARGETS test_pointnet2_utils 
                 test_pointnet2_core_modules 
                 train_pointnet2_sem_seg 
                 inference_pointnet2_sem_seg
-                #regress_costs
-                #test_openvdb
+                regress_costs
+                test_openvdb
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin)
@@ -78,8 +78,8 @@ install(TARGETS test_pointnet2_utils
                 test_pointnet2_core_modules 
                 train_pointnet2_sem_seg 
                 inference_pointnet2_sem_seg
-                #regress_costs
-                #test_openvdb
+                regress_costs
+                test_openvdb
         RUNTIME DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY include/

@@ -16,6 +16,9 @@
 #include <openvdb/points/PointConversion.h>
 #include <openvdb/points/PointCount.h>
 #include <openvdb/tools/LevelSetSphere.h>
+#include <openvdb/tools/VolumeToSpheres.h>
+#include <openvdb/tools/FindActiveValues.h>
+#include <openvdb/math/BBox.h>
 #include <pcl/point_types.h>
 #include <pcl/common/common.h>
 #include <pcl/io/io.h>
@@ -25,7 +28,7 @@ int main()
 {
 
   openvdb::initialize();
-  std::string segmneted_pcl_filename = "/home/atas/uneven_ground_dataset/train_0.pcd";
+  std::string segmneted_pcl_filename = "/home/atas/container_office_map.pcd";
 
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(
     new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -38,21 +41,13 @@ int main()
     std::cerr << "Could not read PCD file: " << segmneted_pcl_filename << std::endl;
   }
 
-  std::vector<openvdb::Vec3R> position;
-
-  // Compute the signed distance from the surface of the sphere of each
-  // voxel within the bounding box and insert the value into the grid
-  // if it is smaller in magnitude than the background value.
+  std::vector<openvdb::Vec3R> points;
 
   for (auto && i : cloud->points) {
-    position.push_back(openvdb::Vec3R(i.x, i.y, i.z));
+    points.push_back(openvdb::Vec3R(i.x, i.y, i.z));
   }
 
-  openvdb::points::PointAttributeVector<openvdb::Vec3R> positionsWrapper(position);
-
-  int pointsPerVoxel = 10;
-  float voxelSize =
-    openvdb::points::computeVoxelSize(positionsWrapper, pointsPerVoxel) / 2.0;
+  float voxelSize = 0.05;
 
   // Create a transform using this voxel-size.
   openvdb::math::Transform::Ptr transform =
@@ -62,35 +57,25 @@ int main()
   // to use for storing the position, (2) the grid we want to create
   // (ie a PointDataGrid).
   // We use no compression here for the positions.
-  openvdb::points::PointDataGrid::Ptr grid =
+  openvdb::points::PointDataGrid::Ptr point_data_grid =
     openvdb::points::createPointDataGrid<openvdb::points::NullCodec,
-      openvdb::points::PointDataGrid>(position, *transform);
+      openvdb::points::PointDataGrid>(points, *transform);
 
   // Set the name of the grid
-  grid->setName("Points");
+  point_data_grid->setName("Points");
 
-  openvdb::FloatGrid::Ptr vox_grid =
+  openvdb::FloatGrid::Ptr float_grid =
     openvdb::FloatGrid::create(/*background value=*/ 0.0);
+  float_grid->setTransform(transform);
 
-  vox_grid->setTransform(
-    openvdb::math::Transform::createLinearTransform(/*voxel size=*/ voxelSize));
-
-  openvdb::FloatGrid::Accessor accessor = vox_grid->getAccessor();
+  openvdb::FloatGrid::Accessor float_grid_accessor = float_grid->getAccessor();
 
   // Iterate over all the leaf nodes in the grid.
-  for (auto leafIter = grid->tree().cbeginLeaf(); leafIter; ++leafIter) {
-    // Verify the leaf origin.
-    std::cout << "Leaf" << leafIter->origin() << std::endl;
-    // Extract the position attribute from the leaf by name (P is position).
+  for (auto leafIter = point_data_grid->tree().cbeginLeaf(); leafIter; ++leafIter) {
     const openvdb::points::AttributeArray & array =
       leafIter->constAttributeArray("P");
     // Create a read-only AttributeHandle. Position always uses Vec3f.
     openvdb::points::AttributeHandle<openvdb::Vec3f> positionHandle(array);
-
-    if (leafIter->origin().x() > 0.0) {
-      accessor.setValue(leafIter->origin(), leafIter->origin().z() * 100.0);
-    }
- 
     // Iterate over the point indices in the leaf.
     for (auto indexIter = leafIter->beginIndexOn(); indexIter; ++indexIter) {
       // Extract the voxel-space position of the point.
@@ -99,21 +84,43 @@ int main()
       const openvdb::Vec3d xyz = indexIter.getCoord().asVec3d();
       // Compute the world-space position of the point.
       openvdb::Vec3f worldPosition =
-        grid->transform().indexToWorld(voxelPosition + xyz);
+        point_data_grid->transform().indexToWorld(voxelPosition + xyz);
       // Verify the index and world-space position of the point
+      float_grid_accessor.setValue(indexIter.getCoord(), 1);
     }
   }
 
-  // Identify the grid as a level set.
-  vox_grid->setGridClass(openvdb::GRID_FOG_VOLUME);
-  // Name the grid "LevelSetSphere".
-  vox_grid->setName("LevelSetSphere");
+  openvdb::tools::FindActiveValues<openvdb::FloatTree> op(float_grid->tree());
+  auto bbx =
+    openvdb::CoordBBox(
+    openvdb::Coord(-1.0 / voxelSize, -1.0 / voxelSize, -1.0 / voxelSize),
+    openvdb::Coord(1.0 / voxelSize, 1.0 / voxelSize, 1.0 / voxelSize));
+
+  auto cube_center_coord =
+    float_grid->transform().worldToIndexCellCentered(openvdb::Vec3R(139.592, 145.786, 0.583193));
+
+  std::cout << op.anyActiveValues(bbx) << std::endl;
+
+  //float_grid->fill(bbx, -1, false);
+  //float_grid->clip(bbx);
+
+  /*std::vector<float> tmpDistances;
+  std::vector<openvdb::Vec3R> tmpPoints;
+  tmpPoints.push_back(openvdb::Vec3R(10, 10, 4));
+  tmpPoints.push_back(openvdb::Vec3R(12, 10, 3));
+  auto csp = openvdb::tools::ClosestSurfacePoint<openvdb::FloatGrid>::create(*float_grid);
+  if (csp->search(tmpPoints, tmpDistances)) {
+    std::cout << "Dist to curr point is " << tmpDistances[0] << std::endl;
+    std::cout << "Dist to curr point is " << tmpDistances[1] << std::endl;
+  }*/
+
 
   // Create a VDB file object.
   openvdb::io::File file("/home/atas/mygrids.vdb");
   // Add the grid pointer to a container.
   openvdb::GridPtrVec grids;
-  grids.push_back(vox_grid);
+  //grids.push_back(point_data_grid);
+  grids.push_back(float_grid);
   // Write out the contents of the container.
   file.write(grids);
   file.close();

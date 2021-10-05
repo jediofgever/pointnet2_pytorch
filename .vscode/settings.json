@@ -82,7 +82,8 @@
         "queue": "cpp",
         "stack": "cpp",
         "future": "cpp",
-        "shared_mutex": "cpp"
+        "shared_mutex": "cpp",
+        "__locale": "cpp"
     },
     "ros.distro": "foxy",
     "python.analysis.extraPaths": [
