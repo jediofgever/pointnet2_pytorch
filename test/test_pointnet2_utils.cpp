@@ -20,8 +20,8 @@ int main()
   pointnet2_utils::check_avail_device();
 
   // Initialize some random
-  int kB = 4; // Batch
-  int kN = 2048; // Number of points in each batch
+  int kB = 8; // Batch
+  int kN = 4096; // Number of points in each batch
   int kFPS_SAMPLES = 128; // FPS going to sample kFPS_SAMPLES points
   int kC = 3; // number of channels
   int kMAX_N_POINTS_IN_RADIUS = 8;
@@ -29,11 +29,14 @@ int main()
 
   c10::IntArrayRef test_tensor_shape = {kB, kN, kC};
   torch::Device cuda_device = torch::kCUDA;
-  //at::Tensor test_tensor = at::rand(test_tensor_shape, cuda_device);
+
+  at::Tensor test_tensor = at::rand(test_tensor_shape, cuda_device);
 
   // Pass a real point cloud to pass through SA and FP stacks of layers
-  auto test_tensor = pointnet2_utils::load_pcl_as_torch_tensor(
-    "/home/pc/pointnet2_pytorch/data/norm_train46.pcd", 2048, cuda_device);
+  /*auto test_tensor = pointnet2_utils::load_pcl_as_torch_tensor(
+    "/home/atas/container_office_map.pcd", kN, cuda_device);*/
+  std::cout << "test_tensor: \n" << test_tensor.data() << std::endl;
+
 
   // Since the tensor might to large, might nt fit to memory, so slie the first 4 Batches
   test_tensor = test_tensor.index(

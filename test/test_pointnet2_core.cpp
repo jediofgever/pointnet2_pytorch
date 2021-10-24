@@ -13,6 +13,10 @@
 // limitations under the License.
 
 #include <pointnet2_pytorch/pointnet2_core.hpp>
+#include <pcl/point_types.h>
+#include <pcl/common/common.h>
+#include <pcl/io/io.h>
+#include <pcl/io/pcd_io.h>
 
 int main(int argc, char const * argv[])
 {
@@ -23,18 +27,18 @@ int main(int argc, char const * argv[])
   torch::Device device(cuda_available ? torch::kCUDA : torch::kCPU);
 
   // Set abstraction layers
-  PointNetSetAbstraction sa1(1024, 0.001, 32,
+  PointNetSetAbstraction sa1(1024, 0.1, 32,
     3 + 3, {32, 32, 64}, false);
-  PointNetSetAbstraction sa2(256, 0.002, 32,
+  PointNetSetAbstraction sa2(256, 0.2, 32,
     64 + 3, {64, 64, 128}, false);
-  PointNetSetAbstraction sa3(64, 0.004, 32,
+  PointNetSetAbstraction sa3(64, 0.4, 32,
     128 + 3, {128, 128, 256}, false);
-  PointNetSetAbstraction sa4(16, 0.008, 32,
+  PointNetSetAbstraction sa4(16, 0.8, 32,
     256 + 3, {256, 256, 512}, false);
 
   // Pass a real point cloud to pass through SA and FP stacks of layers
   auto tensor_from_cloud = pointnet2_utils::load_pcl_as_torch_tensor(
-    "/home/pc/pointnet2_pytorch/data/norm_test0.pcd", num_point_per_batch, device);
+    "/home/atas/pointnet2_pytorch/data/train/train_0.pcd", num_point_per_batch, device);
 
   // Permute the channels so that we have  : [B,C,N]
   tensor_from_cloud = tensor_from_cloud.permute({0, 2, 1});
@@ -133,7 +137,8 @@ int main(int argc, char const * argv[])
   fp_merged_cloud += *fp2_cloud;
   fp_merged_cloud += *fp3_cloud;
   fp_merged_cloud += *fp4_cloud;
-  pcl::io::savePCDFile("../data/fp_pass.pcd", fp_merged_cloud, false);
+
+  pcl::io::savePCDFile("../data/fp_pass.pcd", *final_layer_cloud, false);
 
   std::cout << "Saved a cloud pass from set abstraction layers to ../data/fp_pass.pcd " <<
     std::endl;

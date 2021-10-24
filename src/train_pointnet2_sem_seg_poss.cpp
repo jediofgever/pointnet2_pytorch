@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include <pointnet2_pytorch/pointnet2_sem_seg.hpp>
-#include <pointnet2_pytorch/uneven_ground_dataset.hpp>
+#include <pointnet2_pytorch/poss_dataset.hpp>
 
 int main()
 {
@@ -21,7 +21,6 @@ int main()
   pointnet2_utils::check_avail_device();
 
   // CONSTS
-  double kPARTITION_STEP = 20.0;
   const double kDOWNSAMPLE_VOXEL_SIZE = 0.2;
   const double kNORMAL_ESTIMATION_RADIUS = 1.0;
   const int kBATCH_SIZE = 16;
@@ -36,18 +35,17 @@ int main()
 
   torch::Device cuda_device = torch::kCUDA;
 
-  uneven_ground_dataset::UnevenGroudDataset::Parameters params;
-  params.root_dir = "/home/pc/pointnet2_pytorch/data";
+  poss_dataset::POSSDataset::Parameters params;
+  params.root_dir = "/home/atas/poss_data";
   params.device = cuda_device;
   params.num_point_per_batch = kN;
   params.downsample_leaf_size = kDOWNSAMPLE_VOXEL_SIZE;
   params.use_normals_as_feature = kUSE_NORMALS;
   params.normal_estimation_radius = kNORMAL_ESTIMATION_RADIUS;
-  params.partition_step_size = kPARTITION_STEP;
   params.split = "train";
   params.is_training = true;
 
-  auto train_dataset = uneven_ground_dataset::UnevenGroudDataset(params).map(
+  auto train_dataset = poss_dataset::POSSDataset(params).map(
     torch::data::transforms::Stack<>());
 
   auto train_dataset_loader =
@@ -66,7 +64,6 @@ int main()
   auto current_learning_rate = learning_rate;
 
   double best_loss = INFINITY;
-
 
   // Train the precious
   for (int i = 0; i < kEPOCHS; i++) {

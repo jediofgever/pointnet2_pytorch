@@ -41,6 +41,10 @@ int main()
     std::cerr << "Could not read PCD file: " << segmneted_pcl_filename << std::endl;
   }
 
+  //pcl::io::savePCDFile("../data/fp_pass.pcd", *cloud, false);
+  pcl::io::loadPCDFile("", *cloud);
+  pcl::io::savePCDFile("../data/rand.pcd", *cloud, false);
+
   std::vector<openvdb::Vec3R> points;
 
   for (auto && i : cloud->points) {
