@@ -105,10 +105,10 @@ public:
    *
    * @param inputCloud
    * @param downsample_leaf_size
-   * @return pcl::PointCloud<pcl::PointXYZRGB>
+   * @return pcl::PointCloud<pcl::PointXYZRGBL>
    */
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr downsampleInputCloud(
-    const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & inputCloud, double downsample_leaf_size);
+  pcl::PointCloud<pcl::PointXYZRGBL>::Ptr downsampleInputCloud(
+    const pcl::PointCloud<pcl::PointXYZRGBL>::Ptr & inputCloud, double downsample_leaf_size);
 
   /**
    * @brief estimate and retun normals of inputCloud
@@ -118,7 +118,7 @@ public:
    * @return pcl::PointCloud<pcl::Normal>
    */
   pcl::PointCloud<pcl::Normal> estimateCloudNormals(
-    const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & inputCloud, double radius);
+    const pcl::PointCloud<pcl::PointXYZRGBL>::Ptr & inputCloud, double radius);
 
   /**
    * @brief Construct a new pcl X Y Z Feature2 Tensor object
@@ -128,7 +128,7 @@ public:
    * @param device
    */
   at::Tensor pclXYZFeature2Tensor(
-    const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & cloud, int N, torch::Device device);
+    const pcl::PointCloud<pcl::PointXYZRGBL>::Ptr & cloud, int N, torch::Device device);
 
   /**
   * @brief Construct a new pcl X Y Z Feature2 Tensor object
@@ -144,21 +144,24 @@ public:
    * @brief
    *
    * @param inputCloud
-   * @return pcl::PointCloud<pcl::PointXYZRGB>::Ptr
+   * @return pcl::PointCloud<pcl::PointXYZRGBL>::Ptr
    */
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr  normalizeCloud(
-    const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & inputCloud);
+  pcl::PointCloud<pcl::PointXYZRGBL>::Ptr  normalizeCloud(
+    const pcl::PointCloud<pcl::PointXYZRGBL>::Ptr & inputCloud);
 
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr readBinFile(std::string filepath);
+  pcl::PointCloud<pcl::PointXYZRGBL>::Ptr readBinFile(std::string filepath);
   pcl::PointCloud<pcl::PointXYZI>::Ptr readBinFileI(std::string filepath);
   std::vector<int> readLabels(std::string filepath);
 
   at::Tensor extractLabelsfromVector(
-    const std::vector<int> label_vector, int N, torch::Device device);
+    const pcl::PointCloud<pcl::PointXYZRGBL>::Ptr & cloud, int N, torch::Device device);
 
   void testLabels(
-    const pcl::PointCloud<pcl::PointXYZRGB>::Ptr & cloud,
-    const std::vector<int> cloud_labels);
+    const pcl::PointCloud<pcl::PointXYZRGBL>::Ptr & cloud);
+
+  pcl::PointCloud<pcl::PointXYZRGBL>::Ptr stitchLabels(
+    pcl::PointCloud<pcl::PointXYZRGBL>::Ptr cloud,
+    std::vector<int> & cloud_labels);
 
   template<typename P>
   typename pcl::PointCloud<P>::Ptr cropCloud(
@@ -174,6 +177,8 @@ public:
     cropBoxFilter.filter(*filtered);
     return filtered;
   }
+
+  int fromPossLabel2SequentialLabel(int poss_label);
 
 private:
   at::Tensor xyz_;

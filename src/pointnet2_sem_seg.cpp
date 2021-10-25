@@ -16,8 +16,9 @@
 
 namespace pointnet2_sem_seg
 {
-PointNet2SemSeg::PointNet2SemSeg()
-:   sa1_(PointNetSetAbstraction(1024, 0.05, 128,
+PointNet2SemSeg::PointNet2SemSeg(int num_class)
+: num_class_(num_class),
+  sa1_(PointNetSetAbstraction(1024, 0.05, 128,
     6 + 3, {32, 32, 64}, false)),
   sa2_(PointNetSetAbstraction(256, 0.1, 64,
     64 + 3, {64, 64, 128}, false)),
@@ -30,10 +31,11 @@ PointNet2SemSeg::PointNet2SemSeg()
   fp3_(PointNetFeaturePropagation(384, {256, 256})),
   fp2_(PointNetFeaturePropagation(320, {256, 128})),
   fp1_(PointNetFeaturePropagation(128, {128, 128, 128})),
+
   conv1_(torch::nn::Conv1dOptions(128, 128, 1)),
   batch_norm1_(torch::nn::BatchNorm1d(128)),
   drop1_(torch::nn::DropoutOptions(0.5)),
-  conv2_(torch::nn::Conv1dOptions(128, 2, 1))
+  conv2_(torch::nn::Conv1dOptions(128, num_class, 1))
 {
   register_module("conv1_", conv1_);
   register_module("batch_norm1_", batch_norm1_);
@@ -58,12 +60,11 @@ std::pair<at::Tensor, at::Tensor> PointNet2SemSeg::forward(at::Tensor xyz)
     sa2_.forward(sa1_output.first, sa1_output.second);
   std::pair<at::Tensor, at::Tensor> sa3_output =
     sa3_.forward(sa2_output.first, sa2_output.second);
-
-  /*std::pair<at::Tensor, at::Tensor> sa4_output =
+  std::pair<at::Tensor, at::Tensor> sa4_output =
     sa4_.forward(sa3_output.first, sa3_output.second);
-  sa3_output.second = fp4_.forward(
-    sa3_output.first, sa4_output.first, sa3_output.second, sa4_output.second);*/
 
+  sa3_output.second = fp4_.forward(
+    sa3_output.first, sa4_output.first, sa3_output.second, sa4_output.second);
   sa2_output.second = fp3_.forward(
     sa2_output.first, sa3_output.first, sa2_output.second, sa3_output.second);
   sa1_output.second = fp2_.forward(
@@ -84,5 +85,4 @@ std::pair<at::Tensor, at::Tensor> PointNet2SemSeg::forward(at::Tensor xyz)
   x = x.permute({0, 2, 1});
   return std::make_pair(x, sa3_output.second);
 }
-
 }  // namespace pointnet2_sem_seg

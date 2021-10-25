@@ -29,6 +29,8 @@ int main()
   const int kEPOCHS = 32;
   int kN = 4096;
   bool kUSE_NORMALS = true;
+  const int kNUM_CLASSES = 8;
+
 
   torch::Device cuda_device = torch::kCUDA;
 
@@ -53,7 +55,7 @@ int main()
   std::cout << "Beginning Testing." << std::endl;
 
   // initialize net and optimizer
-  pointnet2_sem_seg::PointNet2SemSeg net;
+  pointnet2_sem_seg::PointNet2SemSeg net(kNUM_CLASSES);
 
   torch::serialize::InputArchive arc;
   arc.load_from("/home/pc/pointnet2_pytorch/log/best_loss_model.pt", cuda_device);

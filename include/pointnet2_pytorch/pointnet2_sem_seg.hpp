@@ -24,7 +24,7 @@ namespace pointnet2_sem_seg
 class PointNet2SemSeg : public torch::nn::Module
 {
 public:
-  PointNet2SemSeg();
+  PointNet2SemSeg(int num_class);
   ~PointNet2SemSeg();
 
   std::pair<at::Tensor, at::Tensor> forward(at::Tensor xyz);
@@ -45,6 +45,7 @@ protected:
   torch::nn::Dropout drop1_;
   torch::nn::Conv1d conv2_;
 
+  int num_class_;
 };
 
 

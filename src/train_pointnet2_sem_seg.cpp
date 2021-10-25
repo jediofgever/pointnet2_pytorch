@@ -28,6 +28,7 @@ int main()
   const int kEPOCHS = 16;
   int kN = 2048;
   bool kUSE_NORMALS = true;
+  const int kNUM_CLASSES = 8;
 
   // use dynamic LR
   double learning_rate = 0.01;
@@ -55,7 +56,7 @@ int main()
     std::move(train_dataset), kBATCH_SIZE);
 
   // initialize net and optimizer
-  auto net = std::make_shared<pointnet2_sem_seg::PointNet2SemSeg>();
+  auto net = std::make_shared<pointnet2_sem_seg::PointNet2SemSeg>(kNUM_CLASSES);
   net->to(cuda_device);
 
   torch::optim::Adam optimizer(net->parameters(), torch::optim::AdamOptions(

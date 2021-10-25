@@ -21,12 +21,13 @@ int main()
   pointnet2_utils::check_avail_device();
 
   // CONSTS
-  const double kDOWNSAMPLE_VOXEL_SIZE = 0.2;
+  const double kDOWNSAMPLE_VOXEL_SIZE = 0.3;
   const double kNORMAL_ESTIMATION_RADIUS = 1.0;
-  const int kBATCH_SIZE = 16;
+  const int kBATCH_SIZE = 4;
   const int kEPOCHS = 16;
   int kN = 2048;
   bool kUSE_NORMALS = true;
+  const int kNUM_CLASSES = 14;
 
   // use dynamic LR
   double learning_rate = 0.01;
@@ -53,7 +54,7 @@ int main()
     std::move(train_dataset), kBATCH_SIZE);
 
   // initialize net and optimizer
-  auto net = std::make_shared<pointnet2_sem_seg::PointNet2SemSeg>();
+  auto net = std::make_shared<pointnet2_sem_seg::PointNet2SemSeg>(kNUM_CLASSES);
   net->to(cuda_device);
 
   torch::optim::Adam optimizer(net->parameters(), torch::optim::AdamOptions(
