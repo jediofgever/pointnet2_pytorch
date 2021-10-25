@@ -23,7 +23,7 @@ int main()
   // CONSTS
   const double kDOWNSAMPLE_VOXEL_SIZE = 0.1;
   const double kNORMAL_ESTIMATION_RADIUS = 0.4;
-  const int kBATCH_SIZE = 2;
+  const int kBATCH_SIZE = 4;
   const int kEPOCHS = 16;
   int kN = 2048;
   bool kUSE_NORMALS = false;
@@ -143,8 +143,8 @@ int main()
       std::cout << "Found Best Loss at epoch: " << i << std::endl;
       std::cout << "Saving model and optimizer..." << std::endl;
       try {
-        torch::save(net, "/home/pc/pointnet2_pytorch/log/best_loss_model.pt");
-        torch::save(optimizer, "/home/pc/pointnet2_pytorch/log/best_optim_model.pt");
+        torch::save(net, "/home/atas/pointnet2_pytorch/log/best_loss_model.pt");
+        torch::save(optimizer, "/home/atas/pointnet2_pytorch/log/best_optim_model.pt");
       } catch (const std::exception & e) {
         std::cout << "Failed to save model and optimizer..." << std::endl;
         std::cerr << e.what() << '\n';
