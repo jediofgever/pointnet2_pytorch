@@ -21,16 +21,16 @@ int main()
   pointnet2_utils::check_avail_device();
 
   // CONSTS
-  const double kDOWNSAMPLE_VOXEL_SIZE = 0.3;
-  const double kNORMAL_ESTIMATION_RADIUS = 1.0;
-  const int kBATCH_SIZE = 4;
+  const double kDOWNSAMPLE_VOXEL_SIZE = 0.1;
+  const double kNORMAL_ESTIMATION_RADIUS = 0.4;
+  const int kBATCH_SIZE = 2;
   const int kEPOCHS = 16;
   int kN = 2048;
-  bool kUSE_NORMALS = true;
+  bool kUSE_NORMALS = false;
   const int kNUM_CLASSES = 14;
 
   // use dynamic LR
-  double learning_rate = 0.01;
+  double learning_rate = 0.1;
   const size_t learning_rate_decay_frequency = 8;
   const double learning_rate_decay_factor = 1.0 / 5.0;
 
@@ -68,7 +68,6 @@ int main()
 
   // Train the precious
   for (int i = 0; i < kEPOCHS; i++) {
-    // In a for loop you can now use your data.
     float loss_numerical = 0.0;
     double overall_batch_accu = 0.0;
     double num_correct_points = 0.0;
@@ -121,6 +120,7 @@ int main()
       loss_numerical += loss.item<float>();
       batch_counter++;
       std::cout << "Current Batch: " << batch_counter << std::endl;
+      std::cout << "Loss for this batch was: " << loss.item<float>() << std::endl;
     }
 
     // Decay learning rate

@@ -98,13 +98,13 @@ POSSDataset::POSSDataset(Parameters params)
       std::cout << "POSSDataset: Processing: " << cloud_filepath.string() << std::endl;
       std::cout << "POSSDataset: Processing: " << label_filepath.string() << std::endl;
 
-      auto raw_cloud = readBinFile(cloud_filepath.string());
+      auto cloud = readBinFile(cloud_filepath.string());
       auto label_vector = readLabels(label_filepath.string());
 
-      std::cout << "POSSDataset: Cloud has points: " << raw_cloud->points.size() << std::endl;
+      std::cout << "POSSDataset: Cloud has points: " << cloud->points.size() << std::endl;
       std::cout << "POSSDataset: Cloud has labels: " << label_vector.size() << std::endl;
 
-      auto cloud = stitchLabels(raw_cloud, label_vector);
+      cloud = stitchLabels(cloud, label_vector);
 
       // CROP CLOUD
       cloud = cropCloud<pcl::PointXYZRGBL>(
@@ -120,8 +120,6 @@ POSSDataset::POSSDataset(Parameters params)
           std::endl;
       }
 
-      //testLabels(cloud);
-
       // NORMALS MIGHT BE USED AS FEATURES
       pcl::PointCloud<pcl::Normal> normals;
       if (params.use_normals_as_feature) {
@@ -130,6 +128,8 @@ POSSDataset::POSSDataset(Parameters params)
 
       // WHEN TRAINING AND TESTING WE NORMALIZE CLOUD GRIDS TO [-1.0 , 1.0] RANGE
       auto normalized_cloud = normalizeCloud(cloud);
+
+      testLabels(cloud);
 
       // COMBINE ALL FEATURES TO XYZ_ TENSOR
       at::Tensor normalized_xyz_tensor = pclXYZFeature2Tensor(
@@ -386,6 +386,12 @@ at::Tensor POSSDataset::extractLabelsfromVector(
   for (int i = 0; i < B; i++) {
     for (int j = 0; j < N; j++) {
       int label = cloud->points[i * N + j].a;
+      if (label < 0 || label > 13) {
+        std::cout << label << std::endl;
+        std::cerr << "Found a label outside of [0, nb_classes-1] Setting this label as noise." <<
+          std::endl;
+        label = 0;
+      }
       at::Tensor point_label_tensor = at::zeros({1, 1}, device);
       point_label_tensor.index_put_({0, 0}, label);
       labels.index_put_({i, j}, point_label_tensor);
