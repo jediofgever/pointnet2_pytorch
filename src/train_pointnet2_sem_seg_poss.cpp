@@ -23,7 +23,7 @@ int main()
   // CONSTS
   const double kDOWNSAMPLE_VOXEL_SIZE = 0.1;
   const double kNORMAL_ESTIMATION_RADIUS = 0.4;
-  const int kBATCH_SIZE = 16;
+  const int kBATCH_SIZE = 64;
   const int kEPOCHS = 16;
   int kN = 2048;
   bool kUSE_NORMALS = true;
@@ -49,10 +49,13 @@ int main()
   auto train_dataset = poss_dataset::POSSDataset(params).map(
     torch::data::transforms::Stack<>());
 
+    torch::data::DataLoaderOptions options;
+  options.workers(8);
+  options.batch_size(kBATCH_SIZE);
+  
   auto train_dataset_loader =
     torch::data::make_data_loader<torch::data::samplers::RandomSampler>(
-    std::move(train_dataset), kBATCH_SIZE);
-
+    std::move(train_dataset),options);
   // initialize net and optimizer
   auto net = std::make_shared<pointnet2_sem_seg::PointNet2SemSeg>(kNUM_CLASSES);
   net->to(cuda_device);
