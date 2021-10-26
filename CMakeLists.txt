@@ -13,10 +13,10 @@ set(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda")
 find_package(PCL REQUIRED)
 find_package(Torch REQUIRED)
 find_package(CUDA REQUIRED)
-#find_package(CUDNN REQUIRED)
+find_package(CUDNN 8.0 REQUIRED)
 
-list(APPEND CMAKE_MODULE_PATH "/usr/local/lib/cmake/OpenVDB")
-find_package(OpenVDB REQUIRED)
+#list(APPEND CMAKE_MODULE_PATH "/usr/local/lib/cmake/OpenVDB")
+#find_package(OpenVDB REQUIRED)
 
 find_package(OpenMP)
 if (OPENMP_FOUND)
@@ -63,15 +63,15 @@ add_executable(inference_pointnet2_sem_seg src/inference_pointnet2_sem_seg.cpp
                                        src/uneven_ground_dataset.cpp)
 target_link_libraries(inference_pointnet2_sem_seg ${PCL_LIBRARIES} ${TORCH_LIBRARIES} stdc++fs OpenMP::OpenMP_CXX)
 
-add_executable(test_openvdb  test/test_openvdb.cpp)
-target_link_libraries(test_openvdb OpenVDB::openvdb ${PCL_LIBRARIES})
+#add_executable(test_openvdb  test/test_openvdb.cpp)
+#target_link_libraries(test_openvdb OpenVDB::openvdb ${PCL_LIBRARIES})
 
 install(TARGETS test_pointnet2_utils 
                 test_pointnet2_core_modules 
                 train_pointnet2_sem_seg 
                 train_pointnet2_sem_seg_poss
                 inference_pointnet2_sem_seg
-                test_openvdb
+ #               test_openvdb
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin)
@@ -81,7 +81,7 @@ install(TARGETS test_pointnet2_utils
                 train_pointnet2_sem_seg 
                 train_pointnet2_sem_seg_poss
                 inference_pointnet2_sem_seg
-                test_openvdb
+ #               test_openvdb
         RUNTIME DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY include/

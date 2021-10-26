@@ -19,7 +19,7 @@ namespace pointnet2_sem_seg
 PointNet2SemSeg::PointNet2SemSeg(int num_class)
 : num_class_(num_class),
   sa1_(PointNetSetAbstraction(1024, 0.05, 128,
-    3 + 3, {32, 32, 64}, false)),
+    6 + 3, {32, 32, 64}, false)),
   sa2_(PointNetSetAbstraction(256, 0.1, 64,
     64 + 3, {64, 64, 128}, false)),
   sa3_(PointNetSetAbstraction(64, 0.2, 32,
