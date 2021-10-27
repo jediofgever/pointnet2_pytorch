@@ -243,6 +243,48 @@ void torch_tensor_to_pcl_cloud(
   cloud->height = cloud->points.size();
 }
 
+void torch_tensor_to_pcl_cloud(
+  const at::Tensor * input_tensor,
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const at::Tensor * point_color_tensor)
+{
+  c10::IntArrayRef input_shape = input_tensor->sizes();
+  if (input_shape.size() == 3) {
+    for (int i = 0; i < input_shape[0]; i++) {
+      for (int j = 0; j < input_shape[1]; j++) {
+        pcl::PointXYZRGB crr_point;
+        crr_point.x = input_tensor->index({i, j, 0}).item<float>();
+        crr_point.y = input_tensor->index({i, j, 1}).item<float>();
+        crr_point.z = input_tensor->index({i, j, 2}).item<float>();
+
+        auto pointcolor = getColorByIndex(point_color_tensor->index({i, j}).item<int>());
+        crr_point.r = pointcolor.r;
+        crr_point.g = pointcolor.g;
+        crr_point.b = pointcolor.b;
+        cloud->points.push_back(crr_point);
+      }
+    }
+  } else {
+    for (int i = 0; i < input_shape[0]; i++) {
+      for (int j = 0; j < input_shape[1]; j++) {
+        for (int k = 0; k < input_shape[2]; k++) {
+          pcl::PointXYZRGB crr_point;
+          crr_point.x = input_tensor->index({i, j, k, 0}).item<float>();
+          crr_point.y = input_tensor->index({i, j, k, 1}).item<float>();
+          crr_point.z = input_tensor->index({i, j, k, 2}).item<float>();
+
+          auto pointcolor = getColorByIndex(point_color_tensor->index({i, j}).item<int>());
+          crr_point.r = pointcolor.r;
+          crr_point.g = pointcolor.g;
+          crr_point.b = pointcolor.b;
+          cloud->points.push_back(crr_point);
+        }
+      }
+    }
+  }
+  cloud->width = 1;
+  cloud->height = cloud->points.size();
+}
+
 at::Tensor load_pcl_as_torch_tensor(
   const std::string cloud_filename, int N, torch::Device device)
 {
@@ -294,4 +336,97 @@ at::Tensor load_pcl_as_torch_tensor(
   }
   return cloud_as_tensor;
 }
+
+pcl::PointXYZRGBL getColorByIndex(int class_label)
+{
+  pcl::PointXYZRGBL result;
+  switch (class_label) {
+    case 0:   // RED:
+      result.r = 0.8 * 255.0;
+      result.g = 0.1 * 255.0;
+      result.b = 0.1 * 255.0;
+      break;
+    case 1:   //GREEN:
+      result.r = 0.1 * 255.0;
+      result.g = 0.8 * 255.0;
+      result.b = 0.1 * 255.0;
+      break;
+    case 2:   //GREY:
+      result.r = 0.9 * 255.0;
+      result.g = 0.9 * 255.0;
+      result.b = 0.9 * 255.0;
+      break;
+    case 3:   //DARK_GREY:
+      result.r = 0.6 * 255.0;
+      result.g = 0.6 * 255.0;
+      result.b = 0.6 * 255.0;
+      break;
+    case 4:   //WHITE:
+      result.r = 1.0 * 255.0;
+      result.g = 1.0 * 255.0;
+      result.b = 1.0 * 255.0;
+      break;
+    case 5:   //ORANGE:
+      result.r = 1.0 * 255.0;
+      result.g = 0.5 * 255.0;
+      result.b = 0.0 * 255.0;
+      break;
+    case 6:   //Maroon:
+      result.r = 0.5 * 255.0;
+      result.g = 0.0 * 255.0;
+      result.b = 0.0 * 255.0;
+      break;
+    case 7:   //Olive:
+      result.r = 0.5 * 255.0;
+      result.g = 0.5 * 255.0;
+      result.b = 0.0 * 255.0;
+      break;
+    case 8:   //Navy:
+      result.r = 0.0 * 255.0;
+      result.g = 0.0 * 255.0;
+      result.b = 0.5 * 255.0;
+      break;
+    case 9:   //BLACK:
+      result.r = 0.0 * 255.0;
+      result.g = 0.0 * 255.0;
+      result.b = 0.0 * 255.0;
+      break;
+    case 10:   //YELLOW:
+      result.r = 1.0 * 255.0;
+      result.g = 1.0 * 255.0;
+      result.b = 0.0 * 255.0;
+      break;
+    case 11:   //BROWN:
+      result.r = 0.5 * 255.097;
+      result.g = 0.2 * 255.096;
+      result.b = 0.0 * 255.0;
+      break;
+    case 12:   //PINK:
+      result.r = 1.0 * 255.0;
+      result.g = 0.4 * 255.0;
+      result.b = 1.0 * 255.0;
+      break;
+    case 13:   //LIME_GREEN:
+      result.r = 0.6 * 255.0;
+      result.g = 1.0 * 255.0;
+      result.b = 0.2 * 255.0;
+      break;
+    case 14:   //PURPLE:
+      result.r = 0.5 * 255.097;
+      result.g = 0.0 * 255.0;
+      result.b = 0.5 * 255.097;
+      break;
+    case 15:   //CYAN:
+      result.r = 0.0 * 255.0;
+      result.g = 1.0 * 255.0;
+      result.b = 1.0 * 255.0;
+      break;
+    case 16:   //MAGENTA:
+      result.r = 1.0 * 255.0;
+      result.g = 0.0 * 255.0;
+      result.b = 1.0 * 255.0;
+  }
+  return result;
+}
+
 }  // namespace pointnet2_utils

@@ -22,7 +22,7 @@
 #include <pcl/filters/uniform_sampling.h>
 #include <pcl/filters/crop_box.h>
 #include <fstream>
-
+#include <pointnet2_pytorch/pointnet2_utils.hpp>
 
 namespace poss_dataset
 {
@@ -127,7 +127,18 @@ public:
    * @param N
    * @param device
    */
-  at::Tensor pclXYZFeature2Tensor(
+  std::pair<at::Tensor, at::Tensor> pclXYZFeature2Tensor(
+    const pcl::PointCloud<pcl::PointXYZRGBL>::Ptr & cloud, int N,
+    torch::Device device, at::Tensor & indices);
+
+  /**
+   * @brief Construct a new pcl X Y Z Feature2 Tensor object
+   *
+   * @param cloud
+   * @param N
+   * @param device
+   */
+  at::Tensor extractIntensities(
     const pcl::PointCloud<pcl::PointXYZRGBL>::Ptr & cloud, int N, torch::Device device);
 
   /**
@@ -138,7 +149,8 @@ public:
   * @param device
   */
   at::Tensor pclNormalFeature2Tensor(
-    const pcl::PointCloud<pcl::Normal> & normals, int N, torch::Device device);
+    const pcl::PointCloud<pcl::Normal> & normals, const at::Tensor * selected_indices,
+    torch::Device device);
 
   /**
    * @brief
@@ -183,6 +195,7 @@ public:
 private:
   at::Tensor xyz_;
   at::Tensor normals_;
+  at::Tensor intensities_;
   at::Tensor labels_;
   // only positions
   at::Tensor original_xyz_;
