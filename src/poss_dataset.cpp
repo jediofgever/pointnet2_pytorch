@@ -85,7 +85,7 @@ POSSDataset::POSSDataset(Parameters params)
 
     for (int i = 1; i < curr_sequence_data_filenames.size() + 1; i++) {
 
-      if (i % 20 != 0) {
+      if (i % 350 != 0) {
         continue;
       }
 
@@ -109,8 +109,8 @@ POSSDataset::POSSDataset(Parameters params)
       // CROP CLOUD
       cloud = cropCloud<pcl::PointXYZRGBL>(
         cloud,
-        Eigen::Vector4f(-20.0f, -20.0f, -4.0f, 1.0f),
-        Eigen::Vector4f(20.0f, 20.0f, 4.0f, 1.0f),
+        Eigen::Vector4f(-10.0f, -10.0f, -4.0f, 1.0f),
+        Eigen::Vector4f(10.0f, 10.0f, 4.0f, 1.0f),
         false);
 
       // DOWNSAMPLE IF REQUESTED
@@ -127,7 +127,7 @@ POSSDataset::POSSDataset(Parameters params)
       }
 
       // WHEN TRAINING AND TESTING WE NORMALIZE CLOUD GRIDS TO [-1.0 , 1.0] RANGE
-      auto normalized_cloud = normalizeCloud(cloud);
+       auto normalized_cloud = normalizeCloud(cloud);
 
       // testLabels(cloud);
 
