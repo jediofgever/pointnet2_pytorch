@@ -21,24 +21,25 @@ int main()
   pointnet2_utils::check_avail_device();
 
   // CONSTS
-  const double kDOWNSAMPLE_VOXEL_SIZE = 0.1;
-  const double kNORMAL_ESTIMATION_RADIUS = 0.4;
-  const int kBATCH_SIZE = 4;
+  const double kDOWNSAMPLE_VOXEL_SIZE = 0.2;
+  const double kNORMAL_ESTIMATION_RADIUS = 0.5;
+  const int kBATCH_SIZE = 2;
   const int kEPOCHS = 16;
   int kN = 2048;
-  bool kUSE_NORMALS = false;
+  bool kUSE_NORMALS = true;
   const int kNUM_CLASSES = 14;
 
   // use dynamic LR
-  double learning_rate = 0.1;
+  double learning_rate = 0.01;
   const size_t learning_rate_decay_frequency = 8;
   const double learning_rate_decay_factor = 1.0 / 5.0;
 
   torch::Device cuda_device = torch::kCUDA;
+  torch::Device cpu_device = torch::kCPU;
 
   poss_dataset::POSSDataset::Parameters params;
   params.root_dir = "/home/atas/poss_data";
-  params.device = cuda_device;
+  params.device = cpu_device;
   params.num_point_per_batch = kN;
   params.downsample_leaf_size = kDOWNSAMPLE_VOXEL_SIZE;
   params.use_normals_as_feature = kUSE_NORMALS;
@@ -46,12 +47,16 @@ int main()
   params.split = "train";
   params.is_training = true;
 
-  auto train_dataset = poss_dataset::POSSDataset(params).map(
-    torch::data::transforms::Stack<>());
+  auto train_dataset = poss_dataset::POSSDataset(params)
+    .map(torch::data::transforms::Stack<>());
 
+  torch::data::DataLoaderOptions options;
+  options.workers(8);
+  options.batch_size(kBATCH_SIZE);
+  
   auto train_dataset_loader =
     torch::data::make_data_loader<torch::data::samplers::RandomSampler>(
-    std::move(train_dataset), kBATCH_SIZE);
+    std::move(train_dataset),options);
 
   // initialize net and optimizer
   auto net = std::make_shared<pointnet2_sem_seg::PointNet2SemSeg>(kNUM_CLASSES);

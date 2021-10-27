@@ -182,6 +182,7 @@ public:
 
 private:
   at::Tensor xyz_;
+  at::Tensor normals_;
   at::Tensor labels_;
   // only positions
   at::Tensor original_xyz_;

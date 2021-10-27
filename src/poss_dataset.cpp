@@ -85,7 +85,7 @@ POSSDataset::POSSDataset(Parameters params)
 
     for (int i = 1; i < curr_sequence_data_filenames.size() + 1; i++) {
 
-      if (i % 20 != 0) {
+      if (i % 50 != 0) {
         continue;
       }
 
@@ -109,8 +109,8 @@ POSSDataset::POSSDataset(Parameters params)
       // CROP CLOUD
       cloud = cropCloud<pcl::PointXYZRGBL>(
         cloud,
-        Eigen::Vector4f(-20.0f, -20.0f, -4.0f, 1.0f),
-        Eigen::Vector4f(20.0f, 20.0f, 4.0f, 1.0f),
+        Eigen::Vector4f(-10.0f, -10.0f, -4.0f, 1.0f),
+        Eigen::Vector4f(10.0f, 10.0f, 4.0f, 1.0f),
         false);
 
       // DOWNSAMPLE IF REQUESTED
@@ -160,23 +160,28 @@ POSSDataset::POSSDataset(Parameters params)
       // ACCUMULATE ORIGINAL XYZ(POSTIIONS)
       auto original_xyz = original_xyz_tensor;
 
-      //COMBINE NORMALS TO XYZ_ ONLY IF REQUESTED
-      if (params.use_normals_as_feature) {
-        xyz = torch::cat({xyz, normals_tensor}, 2);
-      }
-
       // INIIALLY ASSIGN XYZ_, LABELS_ AND
       if (!xyz_.sizes().front()) {
         xyz_ = xyz;
+        normals_ = normals_tensor;
         labels_ = labels;
         original_xyz_ = original_xyz;
       } else {
         xyz_ = torch::cat({xyz_, xyz}, 0);
+        normals_ = torch::cat({normals_, normals_tensor}, 0);
         labels_ = torch::cat({labels_, labels}, 0);
         original_xyz_ = torch::cat({original_xyz_, original_xyz}, 0);
       }
     }
   }
+
+  normals_ = torch::nan_to_num(normals_, 0.0);
+
+  //COMBINE NORMALS TO XYZ_ ONLY IF REQUESTED
+  if (params.use_normals_as_feature) {
+    xyz_ = torch::cat({xyz_, normals_}, 2);
+  }
+
   std::cout << "POSSDataset: shape of input data xyz_ " << xyz_.sizes() << std::endl;
   std::cout << "POSSDataset: shape of input labels labels_ " << labels_.sizes() << std::endl;
 }
@@ -218,12 +223,17 @@ pcl::PointCloud<pcl::Normal> POSSDataset::estimateCloudNormals(
   pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
   pcl::NormalEstimation<pcl::PointXYZRGBL, pcl::Normal> normal_estimator;
   pcl::search::KdTree<pcl::PointXYZRGBL>::Ptr kd_tree(new pcl::search::KdTree<pcl::PointXYZRGBL>());
+  normal_estimator.setViewPoint(
+    std::numeric_limits<float>::max(),
+    std::numeric_limits<float>::max(),
+    std::numeric_limits<float>::max());
   normal_estimator.setSearchMethod(kd_tree);
   normal_estimator.setRadiusSearch(radius);
   normal_estimator.setInputCloud(inputCloud);
   normal_estimator.setSearchSurface(inputCloud);
   normal_estimator.compute(*normals);
-  normal_estimator.setKSearch(20);
+  normal_estimator.setKSearch(10);
+
   return *normals;
 }
 
