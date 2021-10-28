@@ -108,6 +108,17 @@ void torch_tensor_to_pcl_cloud(
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, std::vector<double> point_color);
 
 /**
+* @brief given a tensor which has pointcloud in it, fills point into a pointcloud ,
+*
+* @param input_tensor
+* @param cloud
+* @param point_color r,g,b
+*/
+void torch_tensor_to_pcl_cloud(
+  const at::Tensor * input_tensor,
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, const at::Tensor * point_color_tensor);
+
+/**
  * @brief
  *
  * @param cloud_filename
@@ -128,5 +139,8 @@ at::Tensor load_pcl_as_torch_tensor(
  */
 at::Tensor load_pcl_as_torch_tensor(
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, int N, torch::Device device);
+
+
+pcl::PointXYZRGBL getColorByIndex(int class_label);
 
 }  // namespace pointnet2_utils

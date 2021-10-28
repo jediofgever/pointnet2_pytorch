@@ -85,7 +85,7 @@ POSSDataset::POSSDataset(Parameters params)
 
     for (int i = 1; i < curr_sequence_data_filenames.size() + 1; i++) {
 
-      if (i % 20 != 0) {
+      if (i % 350 != 0) {
         continue;
       }
 
@@ -106,13 +106,6 @@ POSSDataset::POSSDataset(Parameters params)
 
       cloud = stitchLabels(cloud, label_vector);
 
-      // CROP CLOUD
-      cloud = cropCloud<pcl::PointXYZRGBL>(
-        cloud,
-        Eigen::Vector4f(-20.0f, -20.0f, -4.0f, 1.0f),
-        Eigen::Vector4f(20.0f, 20.0f, 4.0f, 1.0f),
-        false);
-
       // DOWNSAMPLE IF REQUESTED
       if (params.downsample_leaf_size > 0.0) {
         cloud = downsampleInputCloud(cloud, params.downsample_leaf_size);
@@ -120,66 +113,79 @@ POSSDataset::POSSDataset(Parameters params)
           std::endl;
       }
 
-      // NORMALS MIGHT BE USED AS FEATURES
-      pcl::PointCloud<pcl::Normal> normals;
-      if (params.use_normals_as_feature) {
-        normals = estimateCloudNormals(cloud, params.normal_estimation_radius);
-      }
+      double y_step_size = 8.0;
+      double max_x = 16.0;
+      double min_x = -16.0;
+      double x_step_size = 16.0;
 
-      // WHEN TRAINING AND TESTING WE NORMALIZE CLOUD GRIDS TO [-1.0 , 1.0] RANGE
-      auto normalized_cloud = normalizeCloud(cloud);
+      for (double k = min_x; k < max_x; k += x_step_size) {
 
-      // testLabels(cloud);
+        // CROP CLOUD
+        auto cropped_cloud = cropCloud<pcl::PointXYZRGBL>(
+          cloud,
+          Eigen::Vector4f(-y_step_size, k, -4.0f, 1.0f),
+          Eigen::Vector4f(y_step_size, k + x_step_size, 4.0f, 1.0f),
+          false);
 
-      // COMBINE ALL FEATURES TO XYZ_ TENSOR
-      at::Tensor normalized_xyz_tensor = pclXYZFeature2Tensor(
-        normalized_cloud,
-        params.num_point_per_batch,
-        params.device);
+        // NORMALS MIGHT BE USED AS FEATURES
+        pcl::PointCloud<pcl::Normal> normals;
+        normals = estimateCloudNormals(cropped_cloud, params.normal_estimation_radius);
+ 
+        // WHEN TRAINING AND TESTING WE NORMALIZE CLOUD GRIDS TO [-1.0 , 1.0] RANGE
+        auto normalized_cloud = normalizeCloud(cropped_cloud);
 
-      at::Tensor normals_tensor = pclNormalFeature2Tensor(
-        normals,
-        params.num_point_per_batch,
-        params.device);
+        testLabels(cropped_cloud);
+        at::Tensor selected_indices;
 
-      // PUSH GROUND TRUTH LABELS TO LABELS_
-      at::Tensor labels = extractLabelsfromVector(
-        cloud,
-        params.num_point_per_batch,
-        params.device);
+        // COMBINE ALL FEATURES TO XYZ_ TENSOR
+        auto normalized_xyz_and_label_pair = pclXYZFeature2Tensor(
+          normalized_cloud,
+          params.num_point_per_batch,
+          params.device, selected_indices);
 
-      // NON NORMALIZED XYZ(positions) ARE STORED AS MEMBER VAR, IN CASE USER WANT TO ACCESS ORIGINAL DATA
-      at::Tensor original_xyz_tensor = pclXYZFeature2Tensor(
-        cloud,
-        params.num_point_per_batch,
-        params.device);
+        std::cout << "POSSDataset: shape of selected_indices " << selected_indices.sizes() <<
+          std::endl;
 
-      // DEFAULT FETAURES ARE JUST XYZ(positions)
-      auto xyz = normalized_xyz_tensor;
+        at::Tensor normals_tensor = pclNormalFeature2Tensor(
+          normals,
+          &selected_indices,
+          params.device);
 
-      // ACCUMULATE ORIGINAL XYZ(POSTIIONS)
-      auto original_xyz = original_xyz_tensor;
+        // PUSH GROUND TRUTH LABELS TO LABELS_
+        at::Tensor intensities = extractIntensities(
+          cropped_cloud,
+          &selected_indices,
+          params.device);
 
-      // INIIALLY ASSIGN XYZ_, LABELS_ AND
-      if (!xyz_.sizes().front()) {
-        xyz_ = xyz;
-        normals_ = normals_tensor;
-        labels_ = labels;
-        original_xyz_ = original_xyz;
-      } else {
-        xyz_ = torch::cat({xyz_, xyz}, 0);
-        normals_ = torch::cat({normals_, normals_tensor}, 0);
-        labels_ = torch::cat({labels_, labels}, 0);
-        original_xyz_ = torch::cat({original_xyz_, original_xyz}, 0);
+        // DEFAULT FETAURES ARE JUST XYZ(positions)
+        auto xyz = normalized_xyz_and_label_pair.first;
+        auto labels = normalized_xyz_and_label_pair.second;
+
+        // INIIALLY ASSIGN XYZ_, LABELS_ AND
+        if (!xyz_.sizes().front()) {
+          xyz_ = xyz;
+          normals_ = normals_tensor;
+          intensities_ = intensities;
+          labels_ = labels;
+        } else {
+          xyz_ = torch::cat({xyz_, xyz}, 0);
+          normals_ = torch::cat({normals_, normals_tensor}, 0);
+          intensities_ = torch::cat({intensities_, intensities}, 0);
+          labels_ = torch::cat({labels_, labels}, 0);
+        }
       }
     }
   }
-  normals_ = torch::nan_to_num(normals_, 0.0);
 
+  normals_ = torch::nan_to_num(normals_, 0.0);
   //COMBINE NORMALS TO XYZ_ ONLY IF REQUESTED
   if (params.use_normals_as_feature) {
     xyz_ = torch::cat({xyz_, normals_}, 2);
   }
+  // Normalize intensities to [0,1]
+  intensities_ /= 255.0;
+  xyz_ = torch::cat({xyz_, intensities_}, 2);
+
   std::cout << "POSSDataset: shape of input data xyz_ " << xyz_.sizes() << std::endl;
   std::cout << "POSSDataset: shape of input labels labels_ " << labels_.sizes() << std::endl;
 }
@@ -221,7 +227,7 @@ pcl::PointCloud<pcl::Normal> POSSDataset::estimateCloudNormals(
   pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
   pcl::NormalEstimation<pcl::PointXYZRGBL, pcl::Normal> normal_estimator;
   pcl::search::KdTree<pcl::PointXYZRGBL>::Ptr kd_tree(new pcl::search::KdTree<pcl::PointXYZRGBL>());
-    normal_estimator.setViewPoint(
+  normal_estimator.setViewPoint(
     std::numeric_limits<float>::max(),
     std::numeric_limits<float>::max(),
     std::numeric_limits<float>::max());
@@ -234,56 +240,56 @@ pcl::PointCloud<pcl::Normal> POSSDataset::estimateCloudNormals(
   return *normals;
 }
 
-at::Tensor POSSDataset::pclXYZFeature2Tensor(
-  const pcl::PointCloud<pcl::PointXYZRGBL>::Ptr & cloud, int N, torch::Device device)
+std::pair<at::Tensor, at::Tensor> POSSDataset::pclXYZFeature2Tensor(
+  const pcl::PointCloud<pcl::PointXYZRGBL>::Ptr & cloud, int N, torch::Device device,
+  at::Tensor & indices)
 {
-  int B = std::floor(cloud->points.size() / N);
   int C = 3;
-  at::Tensor feature_tensor = torch::zeros({B, N, C}, device);
 
-  #pragma omp parallel for
-  for (int i = 0; i < B; i++) {
-    for (int j = 0; j < N; j++) {
-      if (i * N + j < cloud->points.size()) {
-        auto curr_point_feature = cloud->points[i * N + j];
-        at::Tensor curr_point_feature_tensor = at::zeros({1, 3}, device);
-        curr_point_feature_tensor.index_put_({0, 0}, curr_point_feature.x);
-        curr_point_feature_tensor.index_put_({0, 1}, curr_point_feature.y);
-        curr_point_feature_tensor.index_put_({0, 2}, curr_point_feature.z);
-        feature_tensor.index_put_(
-          {i, j, torch::indexing::Slice(
-              torch::indexing::None,
-              3)}, curr_point_feature_tensor);
-      }
-    }
+  at::Tensor feature_tensor = torch::zeros({1, static_cast<int>(cloud->size()), C}, device);
+  at::Tensor labels_tensor = torch::zeros({1, static_cast<int>(cloud->size()), 1}, device);
+
+  for (int i = 0; i < cloud->points.size(); i++) {
+    auto curr_point_feature = cloud->points[i];
+    at::Tensor curr_point_feature_tensor = at::zeros({1, 3}, device);
+    curr_point_feature_tensor.index_put_({0, 0}, curr_point_feature.x);
+    curr_point_feature_tensor.index_put_({0, 1}, curr_point_feature.y);
+    curr_point_feature_tensor.index_put_({0, 2}, curr_point_feature.z);
+    feature_tensor.index_put_(
+      {0, i, torch::indexing::Slice(torch::indexing::None, 3)},
+      curr_point_feature_tensor);
+    labels_tensor.index_put_({0, i}, curr_point_feature.a);
   }
-  return feature_tensor;
+
+  auto fps_sampled_indices = pointnet2_utils::farthest_point_sample(feature_tensor, N);
+  auto new_feature_tensor = pointnet2_utils::index_points(feature_tensor, fps_sampled_indices);
+  auto new_label_tensor = pointnet2_utils::index_points(labels_tensor, fps_sampled_indices);
+  indices = fps_sampled_indices;
+
+  return std::make_pair(new_feature_tensor, new_label_tensor);
 }
 
 at::Tensor POSSDataset::pclNormalFeature2Tensor(
-  const pcl::PointCloud<pcl::Normal> & normals, int N, torch::Device device)
+  const pcl::PointCloud<pcl::Normal> & normals, const at::Tensor * selected_indices,
+  torch::Device device)
 {
-  int B = std::floor(normals.points.size() / N);
   int C = 3;
-  at::Tensor feature_tensor = torch::zeros({B, N, C}, device);
 
-  #pragma omp parallel for
-  for (int i = 0; i < B; i++) {
-    for (int j = 0; j < N; j++) {
-      if (i * N + j < normals.points.size()) {
-        auto curr_point_feature = normals.points[i * N + j];
-        at::Tensor curr_point_feature_tensor = at::zeros({1, 3}, device);
-        curr_point_feature_tensor.index_put_({0, 0}, curr_point_feature.normal_x);
-        curr_point_feature_tensor.index_put_({0, 1}, curr_point_feature.normal_y);
-        curr_point_feature_tensor.index_put_({0, 2}, curr_point_feature.normal_z);
-        feature_tensor.index_put_(
-          {i, j, torch::indexing::Slice(
-              torch::indexing::None,
-              3)}, curr_point_feature_tensor);
-      }
-    }
+  at::Tensor feature_tensor = torch::zeros({1, static_cast<int>(normals.size()), C}, device);
+
+  for (int i = 0; i < normals.points.size(); i++) {
+    auto curr_point_feature = normals.points[i];
+    at::Tensor curr_point_feature_tensor = at::zeros({1, 3}, device);
+    curr_point_feature_tensor.index_put_({0, 0}, curr_point_feature.normal_x);
+    curr_point_feature_tensor.index_put_({0, 1}, curr_point_feature.normal_y);
+    curr_point_feature_tensor.index_put_({0, 2}, curr_point_feature.normal_z);
+    feature_tensor.index_put_(
+      {0, i, torch::indexing::Slice(torch::indexing::None, 3)},
+      curr_point_feature_tensor);
   }
-  return feature_tensor;
+
+  auto new_feature_tensor = pointnet2_utils::index_points(feature_tensor, *selected_indices);
+  return new_feature_tensor;
 }
 
 pcl::PointCloud<pcl::PointXYZRGBL>::Ptr POSSDataset::normalizeCloud(
@@ -334,6 +340,7 @@ pcl::PointCloud<pcl::PointXYZRGBL>::Ptr POSSDataset::readBinFile(std::string fil
     pcl::PointXYZRGBL point;
     input.read((char *)&point.x, 3 * sizeof(float));
     input.read((char *)&intensity, sizeof(float));
+    point.r = intensity;
     cloud->push_back(point);
   }
   input.close();
@@ -384,27 +391,24 @@ std::vector<int> POSSDataset::readLabels(std::string filepath)
   return labels;
 }
 
-at::Tensor POSSDataset::extractLabelsfromVector(
-  const pcl::PointCloud<pcl::PointXYZRGBL>::Ptr & cloud, int N, torch::Device device)
+at::Tensor POSSDataset::extractIntensities(
+  const pcl::PointCloud<pcl::PointXYZRGBL>::Ptr & cloud, const at::Tensor * selected_indices,
+  torch::Device device)
 {
-  int B = std::floor(cloud->points.size() / N);
-  at::Tensor labels = torch::zeros({B, N, 1}, device);
+  at::Tensor intensities_tensor = torch::zeros({1, static_cast<int>(cloud->size()), 1}, device);
   #pragma omp parallel for
-  for (int i = 0; i < B; i++) {
-    for (int j = 0; j < N; j++) {
-      int label = cloud->points[i * N + j].a;
-      if (label < 0 || label > 13) {
-        std::cout << label << std::endl;
-        std::cerr << "Found a label outside of [0, nb_classes-1] Setting this label as noise." <<
-          std::endl;
-        label = 0;
-      }
-      at::Tensor point_label_tensor = at::zeros({1, 1}, device);
-      point_label_tensor.index_put_({0, 0}, label);
-      labels.index_put_({i, j}, point_label_tensor);
-    }
+  for (int i = 0; i < cloud->points.size(); i++) {
+    auto curr_point_feature = cloud->points[i];
+    int intensity = curr_point_feature.r;
+    at::Tensor point_intensity_tensor = at::zeros({1, 1}, device);
+    point_intensity_tensor.index_put_({0, 0}, intensity);
+    intensities_tensor.index_put_({0, i}, point_intensity_tensor);
   }
-  return labels;
+
+  auto new_intensities_tensor =
+    pointnet2_utils::index_points(intensities_tensor, *selected_indices);
+
+  return new_intensities_tensor;
 }
 
 void POSSDataset::testLabels(
@@ -418,10 +422,10 @@ void POSSDataset::testLabels(
     p.x = cloud->points[i].x;
     p.y = cloud->points[i].y;
     p.z = cloud->points[i].z;
-    p.r = std::round(cloud->points[i].r - 10 * cloud->points[i].a);
-    p.g = cloud->points[i].a * 10;
-    p.b = cloud->points[i].b;
-    p.a = cloud->points[i].a;
+    auto pointcolor = pointnet2_utils::getColorByIndex(cloud->points[i].a);
+    p.r = pointcolor.r;
+    p.g = pointcolor.g;
+    p.b = pointcolor.b;
     test_cloud->points.push_back(p);
   }
   test_cloud->height = 1;
@@ -510,5 +514,6 @@ int POSSDataset::fromPossLabel2SequentialLabel(int poss_label)
   }
   return corresponding_label;
 }
+
 
 }  // namespace poss_dataset

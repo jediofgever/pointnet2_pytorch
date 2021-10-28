@@ -21,20 +21,22 @@ int main()
   pointnet2_utils::check_avail_device();
 
   // CONSTS
-  const double kDOWNSAMPLE_VOXEL_SIZE = 0.1;
-  const double kNORMAL_ESTIMATION_RADIUS = 0.4;
-  const int kBATCH_SIZE = 64;
-  const int kEPOCHS = 16;
+  const double kDOWNSAMPLE_VOXEL_SIZE = 0.05;
+  const double kNORMAL_ESTIMATION_RADIUS = 0.3;
+  const int kBATCH_SIZE = 2;
+  const int kEPOCHS = 100;
   int kN = 2048;
   bool kUSE_NORMALS = true;
   const int kNUM_CLASSES = 14;
+  const bool kRESUME_TRAINING = false;
 
   // use dynamic LR
   double learning_rate = 0.001;
-  const size_t learning_rate_decay_frequency = 8;
+  const size_t learning_rate_decay_frequency = 32;
   const double learning_rate_decay_factor = 1.0 / 5.0;
 
   torch::Device cuda_device = torch::kCUDA;
+  torch::Device cpu_device = torch::kCPU;
 
   poss_dataset::POSSDataset::Parameters params;
   params.root_dir = "/home/fetulahatas1/poss_data";
@@ -46,8 +48,12 @@ int main()
   params.split = "train";
   params.is_training = true;
 
-  auto train_dataset = poss_dataset::POSSDataset(params).map(
-    torch::data::transforms::Stack<>());
+  auto train_dataset = poss_dataset::POSSDataset(params)
+    .map(torch::data::transforms::Stack<>());
+
+  torch::data::DataLoaderOptions options;
+  options.workers(8);
+  options.batch_size(kBATCH_SIZE);
 
     torch::data::DataLoaderOptions options;
   options.workers(8);
@@ -55,7 +61,8 @@ int main()
   
   auto train_dataset_loader =
     torch::data::make_data_loader<torch::data::samplers::RandomSampler>(
-    std::move(train_dataset),options);
+    std::move(train_dataset), options);
+
   // initialize net and optimizer
   auto net = std::make_shared<pointnet2_sem_seg::PointNet2SemSeg>(kNUM_CLASSES);
   net->to(cuda_device);
@@ -65,8 +72,17 @@ int main()
     .weight_decay(0.0001)
     .betas({0.9, 0.999}));
 
-  auto current_learning_rate = learning_rate;
+  if (kRESUME_TRAINING) {
+    torch::serialize::InputArchive arc;
+    arc.load_from("/home/atas/pointnet2_pytorch/log/best_loss_model.pt", cuda_device);
+    net->load(arc);
+    net->train();
+    torch::serialize::InputArchive arc_opt;
+    arc_opt.load_from("/home/atas/pointnet2_pytorch/log/best_optim_model.pt", cuda_device);
+    optimizer.load(arc_opt);
+  }
 
+  auto current_learning_rate = learning_rate;
   double best_loss = INFINITY;
 
   // Train the precious
@@ -78,7 +94,7 @@ int main()
     int batch_counter = 0;
 
     for (auto & batch : *train_dataset_loader) {
-
+      auto original_input = batch.data.to(cuda_device);
       auto xyz = batch.data.to(cuda_device);
       auto labels = batch.target.to(cuda_device);
       labels = labels.to(torch::kLong);
@@ -96,9 +112,7 @@ int main()
       auto correct_predictions = torch::eq(
         std::get<1>(predicted_label),
         labels.view(
-          {labels_shape[0],
-            labels_shape[1] *
-            labels_shape[2]})).to(torch::kLong);
+          {labels_shape[0], labels_shape[1] * labels_shape[2]})).to(torch::kLong);
 
       num_correct_points += correct_predictions.count_nonzero().item<int>();
 
@@ -124,6 +138,22 @@ int main()
       batch_counter++;
       std::cout << "Current Batch: " << batch_counter << std::endl;
       std::cout << "Loss for this batch was: " << loss.item<float>() << std::endl;
+
+      pcl::PointCloud<pcl::PointXYZRGB>::Ptr gt_cloud(
+        new pcl::PointCloud<pcl::PointXYZRGB>());
+      pcl::PointCloud<pcl::PointXYZRGB>::Ptr predicted_cloud(
+        new pcl::PointCloud<pcl::PointXYZRGB>());
+
+      auto gt_labels = labels.view(
+        {labels_shape[0], labels_shape[1] * labels_shape[2]}).to(torch::kLong);
+
+      pointnet2_utils::torch_tensor_to_pcl_cloud(&original_input, gt_cloud, &gt_labels);
+      pointnet2_utils::torch_tensor_to_pcl_cloud(
+        &original_input, predicted_cloud, &std::get<1>(predicted_label));
+
+      pcl::PCDWriter wr;
+      wr.writeASCII("/home/fetulahatas1/gt_cloud.pcd", *gt_cloud);
+      wr.writeASCII("/home/fetulahatas1/predicted_cloud.pcd", *predicted_cloud);
     }
 
     // Decay learning rate
