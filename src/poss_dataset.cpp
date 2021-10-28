@@ -431,7 +431,7 @@ void POSSDataset::testLabels(
   test_cloud->height = 1;
   test_cloud->width = cloud->points.size();
   pcl::PCDWriter wr;
-  wr.writeASCII("/home/atas/test_poss_labels.pcd", *test_cloud);
+  wr.writeASCII("/home/fetulahatas1/test_poss_labels.pcd", *test_cloud);
 }
 
 pcl::PointCloud<pcl::PointXYZRGBL>::Ptr POSSDataset::stitchLabels(
