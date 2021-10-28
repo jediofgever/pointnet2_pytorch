@@ -130,7 +130,7 @@ POSSDataset::POSSDataset(Parameters params)
         // NORMALS MIGHT BE USED AS FEATURES
         pcl::PointCloud<pcl::Normal> normals;
         normals = estimateCloudNormals(cropped_cloud, params.normal_estimation_radius);
- 
+
         // WHEN TRAINING AND TESTING WE NORMALIZE CLOUD GRIDS TO [-1.0 , 1.0] RANGE
         auto normalized_cloud = normalizeCloud(cropped_cloud);
 
@@ -258,7 +258,14 @@ std::pair<at::Tensor, at::Tensor> POSSDataset::pclXYZFeature2Tensor(
     feature_tensor.index_put_(
       {0, i, torch::indexing::Slice(torch::indexing::None, 3)},
       curr_point_feature_tensor);
-    labels_tensor.index_put_({0, i}, curr_point_feature.a);
+    int label = cloud->points[i].a;
+    if (label < 0 || label > 13) {
+      std::cout << label << std::endl;
+      std::cerr << "Found a label outside of [0, nb_classes-1] Setting this label as noise." <<
+        std::endl;
+      label = 0;
+    }
+    labels_tensor.index_put_({0, i}, label);
   }
 
   auto fps_sampled_indices = pointnet2_utils::farthest_point_sample(feature_tensor, N);
