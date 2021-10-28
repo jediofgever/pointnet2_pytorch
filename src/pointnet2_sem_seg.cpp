@@ -18,20 +18,20 @@ namespace pointnet2_sem_seg
 {
 PointNet2SemSeg::PointNet2SemSeg(int num_class)
 : num_class_(num_class),
-  sa1_(PointNetSetAbstraction(1024, 0.1, 64, 7 + 3, {32, 32, 64}, false)),
-  sa2_(PointNetSetAbstraction(256, 0.2, 32, 64 + 3, {64, 64, 128}, false)),
-  sa3_(PointNetSetAbstraction(64, 0.4, 16, 128 + 3, {128, 128, 256}, false)),
-  sa4_(PointNetSetAbstraction(16, 0.8, 8, 256 + 3, {256, 256, 512}, false)),
+  sa1_(PointNetSetAbstraction(1024, 0.1, 64, 7 + 3, {64, 64, 128}, false)),
+  sa2_(PointNetSetAbstraction(256, 0.2, 32, 128 + 3, {128, 128, 256}, false)),
+  sa3_(PointNetSetAbstraction(64, 0.4, 32, 256 + 3, {256, 256, 512}, false)),
+  sa4_(PointNetSetAbstraction(16, 0.8, 32, 512 + 3, {512, 512, 1024}, false)),
 
-  fp4_(PointNetFeaturePropagation(768, {256, 256})),
-  fp3_(PointNetFeaturePropagation(384, {256, 256})),
-  fp2_(PointNetFeaturePropagation(320, {256, 128})),
-  fp1_(PointNetFeaturePropagation(128, {128, 128, 128})),
+  fp4_(PointNetFeaturePropagation(1536, {512, 512})),
+  fp3_(PointNetFeaturePropagation(768, {512, 512})),
+  fp2_(PointNetFeaturePropagation(640, {512, 256})),
+  fp1_(PointNetFeaturePropagation(256, {256, 256, 256})),
 
-  conv1_(torch::nn::Conv1dOptions(128, 128, 1)),
-  batch_norm1_(torch::nn::BatchNorm1d(128)),
+  conv1_(torch::nn::Conv1dOptions(256, 256, 1)),
+  batch_norm1_(torch::nn::BatchNorm1d(256)),
   drop1_(torch::nn::DropoutOptions(0.5)),
-  conv2_(torch::nn::Conv1dOptions(128, num_class, 1))
+  conv2_(torch::nn::Conv1dOptions(256, num_class, 1))
 {
   register_module("conv1_", conv1_);
   register_module("batch_norm1_", batch_norm1_);
