@@ -85,7 +85,7 @@ POSSDataset::POSSDataset(Parameters params)
 
     for (int i = 1; i < curr_sequence_data_filenames.size() + 1; i++) {
 
-      if (i % 350 != 0) {
+      if (i % 10 != 0) {
         continue;
       }
 

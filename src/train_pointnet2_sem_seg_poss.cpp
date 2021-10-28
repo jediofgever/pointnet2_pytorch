@@ -23,7 +23,7 @@ int main()
   // CONSTS
   const double kDOWNSAMPLE_VOXEL_SIZE = 0.05;
   const double kNORMAL_ESTIMATION_RADIUS = 0.3;
-  const int kBATCH_SIZE = 2;
+  const int kBATCH_SIZE = 16;
   const int kEPOCHS = 100;
   int kN = 2048;
   bool kUSE_NORMALS = true;
@@ -55,7 +55,6 @@ int main()
   options.workers(8);
   options.batch_size(kBATCH_SIZE);
 
-  
   auto train_dataset_loader =
     torch::data::make_data_loader<torch::data::samplers::RandomSampler>(
     std::move(train_dataset), options);
@@ -71,11 +70,11 @@ int main()
 
   if (kRESUME_TRAINING) {
     torch::serialize::InputArchive arc;
-    arc.load_from("/home/atas/pointnet2_pytorch/log/best_loss_model.pt", cuda_device);
+    arc.load_from("/home/fetulahatas1/pointnet2_pytorch/log/best_loss_model.pt", cuda_device);
     net->load(arc);
     net->train();
     torch::serialize::InputArchive arc_opt;
-    arc_opt.load_from("/home/atas/pointnet2_pytorch/log/best_optim_model.pt", cuda_device);
+    arc_opt.load_from("/home/fetulahatas1/pointnet2_pytorch/log/best_optim_model.pt", cuda_device);
     optimizer.load(arc_opt);
   }
 
