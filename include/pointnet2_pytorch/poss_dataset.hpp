@@ -195,7 +195,6 @@ private:
   at::Tensor normals_;
   at::Tensor intensities_;
   at::Tensor labels_;
-  at::Tensor normals_;
   // only positions
   at::Tensor original_xyz_;
 };

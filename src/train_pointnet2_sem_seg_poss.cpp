@@ -55,9 +55,6 @@ int main()
   options.workers(8);
   options.batch_size(kBATCH_SIZE);
 
-    torch::data::DataLoaderOptions options;
-  options.workers(8);
-  options.batch_size(kBATCH_SIZE);
   
   auto train_dataset_loader =
     torch::data::make_data_loader<torch::data::samplers::RandomSampler>(
