@@ -25,7 +25,7 @@ int main()
   const double kNORMAL_ESTIMATION_RADIUS = 0.3;
   const int kBATCH_SIZE = 2;
   const int kEPOCHS = 100;
-  int kN = 1024;
+  int kN = 2048;
   bool kUSE_NORMALS = true;
   const int kNUM_CLASSES = 14;
   const bool kRESUME_TRAINING = false;
