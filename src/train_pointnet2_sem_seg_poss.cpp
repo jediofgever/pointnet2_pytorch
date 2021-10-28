@@ -22,17 +22,17 @@ int main()
 
   // CONSTS
   const double kDOWNSAMPLE_VOXEL_SIZE = 0.05;
-  const double kNORMAL_ESTIMATION_RADIUS = 0.4;
+  const double kNORMAL_ESTIMATION_RADIUS = 0.3;
   const int kBATCH_SIZE = 2;
-  const int kEPOCHS = 16;
-  int kN = 8196;
+  const int kEPOCHS = 100;
+  int kN = 2048;
   bool kUSE_NORMALS = true;
   const int kNUM_CLASSES = 14;
   const bool kRESUME_TRAINING = false;
 
   // use dynamic LR
   double learning_rate = 0.001;
-  const size_t learning_rate_decay_frequency = 8;
+  const size_t learning_rate_decay_frequency = 32;
   const double learning_rate_decay_factor = 1.0 / 5.0;
 
   torch::Device cuda_device = torch::kCUDA;
@@ -161,7 +161,6 @@ int main()
 
     overall_batch_accu = static_cast<double>(num_correct_points) /
       static_cast<double>(total_samples_in_batch * kN);
-
 
     std::cout << "===================================" << std::endl;
     std::cout << "========== Epoch: " << i << "===============" << std::endl;

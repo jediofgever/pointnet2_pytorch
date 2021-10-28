@@ -139,7 +139,8 @@ public:
    * @param device
    */
   at::Tensor extractIntensities(
-    const pcl::PointCloud<pcl::PointXYZRGBL>::Ptr & cloud, int N, torch::Device device);
+    const pcl::PointCloud<pcl::PointXYZRGBL>::Ptr & cloud, const at::Tensor * selected_indices,
+    torch::Device device);
 
   /**
   * @brief Construct a new pcl X Y Z Feature2 Tensor object
@@ -164,9 +165,6 @@ public:
   pcl::PointCloud<pcl::PointXYZRGBL>::Ptr readBinFile(std::string filepath);
   pcl::PointCloud<pcl::PointXYZI>::Ptr readBinFileI(std::string filepath);
   std::vector<int> readLabels(std::string filepath);
-
-  at::Tensor extractLabelsfromVector(
-    const pcl::PointCloud<pcl::PointXYZRGBL>::Ptr & cloud, int N, torch::Device device);
 
   void testLabels(
     const pcl::PointCloud<pcl::PointXYZRGBL>::Ptr & cloud);

@@ -18,14 +18,10 @@ namespace pointnet2_sem_seg
 {
 PointNet2SemSeg::PointNet2SemSeg(int num_class)
 : num_class_(num_class),
-  sa1_(PointNetSetAbstraction(1024, 0.05, 128,
-    6 + 3, {32, 32, 64}, false)),
-  sa2_(PointNetSetAbstraction(256, 0.1, 64,
-    64 + 3, {64, 64, 128}, false)),
-  sa3_(PointNetSetAbstraction(64, 0.2, 32,
-    128 + 3, {128, 128, 256}, false)),
-  sa4_(PointNetSetAbstraction(16, 0.4, 32,
-    256 + 3, {256, 256, 512}, false)),
+  sa1_(PointNetSetAbstraction(1024, 0.1, 64, 7 + 3, {32, 32, 64}, false)),
+  sa2_(PointNetSetAbstraction(256, 0.2, 32, 64 + 3, {64, 64, 128}, false)),
+  sa3_(PointNetSetAbstraction(64, 0.4, 16, 128 + 3, {128, 128, 256}, false)),
+  sa4_(PointNetSetAbstraction(16, 0.8, 8, 256 + 3, {256, 256, 512}, false)),
 
   fp4_(PointNetFeaturePropagation(768, {256, 256})),
   fp3_(PointNetFeaturePropagation(384, {256, 256})),
@@ -60,11 +56,11 @@ std::pair<at::Tensor, at::Tensor> PointNet2SemSeg::forward(at::Tensor xyz)
     sa2_.forward(sa1_output.first, sa1_output.second);
   std::pair<at::Tensor, at::Tensor> sa3_output =
     sa3_.forward(sa2_output.first, sa2_output.second);
-  /*std::pair<at::Tensor, at::Tensor> sa4_output =
+  std::pair<at::Tensor, at::Tensor> sa4_output =
     sa4_.forward(sa3_output.first, sa3_output.second);
 
   sa3_output.second = fp4_.forward(
-    sa3_output.first, sa4_output.first, sa3_output.second, sa4_output.second);*/
+    sa3_output.first, sa4_output.first, sa3_output.second, sa4_output.second);
   sa2_output.second = fp3_.forward(
     sa2_output.first, sa3_output.first, sa2_output.second, sa3_output.second);
   sa1_output.second = fp2_.forward(
