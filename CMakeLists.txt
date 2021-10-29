@@ -60,7 +60,7 @@ add_executable(inference_pointnet2_sem_seg src/inference_pointnet2_sem_seg.cpp
                                        src/pointnet2_sem_seg.cpp
                                        src/pointnet2_core.cpp
                                        src/pointnet2_utils.cpp
-                                       src/uneven_ground_dataset.cpp)
+                                       src/poss_dataset.cpp)
 target_link_libraries(inference_pointnet2_sem_seg ${PCL_LIBRARIES} ${TORCH_LIBRARIES} stdc++fs OpenMP::OpenMP_CXX)
 
 #add_executable(test_openvdb  test/test_openvdb.cpp)
