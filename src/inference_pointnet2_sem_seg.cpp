@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include <pointnet2_pytorch/pointnet2_sem_seg.hpp>
-#include <pointnet2_pytorch/uneven_ground_dataset.hpp>
+#include <pointnet2_pytorch/poss_dataset.hpp>
 #include <torch/script.h> // One-stop header.
 
 int main()
@@ -22,30 +22,28 @@ int main()
   pointnet2_utils::check_avail_device();
 
   // CONSTS
-  double kPARTITION_STEP = 25.0;
-  const double kDOWNSAMPLE_VOXEL_SIZE = 0.0;
-  const double kNORMAL_ESTIMATION_RADIUS = 1.6;
-  const int kBATCH_SIZE = 16;
-  const int kEPOCHS = 32;
-  int kN = 4096;
+  const double kDOWNSAMPLE_VOXEL_SIZE = 0.05;
+  const double kNORMAL_ESTIMATION_RADIUS = 0.3;
+  const int kBATCH_SIZE = 2;
+  const int kEPOCHS = 100;
+  int kN = 2048;
   bool kUSE_NORMALS = true;
-  const int kNUM_CLASSES = 8;
-
+  const int kNUM_CLASSES = 14;
+  const bool kRESUME_TRAINING = false;
 
   torch::Device cuda_device = torch::kCUDA;
 
-  uneven_ground_dataset::UnevenGroudDataset::Parameters params;
-  params.root_dir = "/home/pc/pointnet2_pytorch/data";
+  poss_dataset::POSSDataset::Parameters params;
+  params.root_dir = "/home/atas/poss_data";
   params.device = cuda_device;
   params.num_point_per_batch = kN;
   params.downsample_leaf_size = kDOWNSAMPLE_VOXEL_SIZE;
   params.use_normals_as_feature = kUSE_NORMALS;
   params.normal_estimation_radius = kNORMAL_ESTIMATION_RADIUS;
-  params.partition_step_size = kPARTITION_STEP;
   params.split = "test";
-  params.is_training = false;
+  params.is_training = true;
 
-  auto test_dataset = uneven_ground_dataset::UnevenGroudDataset(params)
+  auto test_dataset = poss_dataset::POSSDataset(params)
     .map(torch::data::transforms::Stack<>());
 
   auto test_dataset_loader =
@@ -58,7 +56,7 @@ int main()
   pointnet2_sem_seg::PointNet2SemSeg net(kNUM_CLASSES);
 
   torch::serialize::InputArchive arc;
-  arc.load_from("/home/pc/pointnet2_pytorch/log/best_loss_model.pt", cuda_device);
+  arc.load_from("/home/atas/pointnet2_pytorch/log/best_loss_model.pt", cuda_device);
 
   net.load(arc);
   net.to(cuda_device);
@@ -73,7 +71,7 @@ int main()
   double overall_batch_accu = 0.0;
 
   for (const auto & batch : *test_dataset_loader) {
-
+    auto original_input = batch.data.to(cuda_device);
     auto xyz = batch.data.to(cuda_device);
     auto labels = batch.target.to(cuda_device);
     labels = labels.to(torch::kLong);
@@ -114,7 +112,22 @@ int main()
     // Output the loss and checkpoint every 100 batches.
     loss_numerical += loss.item<float>();
 
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr gt_cloud(
+      new pcl::PointCloud<pcl::PointXYZRGB>());
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr predicted_cloud(
+      new pcl::PointCloud<pcl::PointXYZRGB>());
+
+    auto gt_labels = labels.view(
+      {labels_shape[0], labels_shape[1] * labels_shape[2]}).to(torch::kLong);
     std::cout << "Processing a batch" << std::endl;
+    pointnet2_utils::torch_tensor_to_pcl_cloud(&original_input, gt_cloud, &gt_labels);
+    pointnet2_utils::torch_tensor_to_pcl_cloud(
+      &original_input, predicted_cloud, &std::get<1>(predicted_label));
+
+    pcl::PCDWriter wr;
+    wr.writeASCII("/home/atas/gt_cloud.pcd", *gt_cloud);
+    wr.writeASCII("/home/atas/predicted_cloud.pcd", *predicted_cloud);
   }
 
   overall_batch_accu = static_cast<double>(num_correct_points) /
