@@ -23,12 +23,12 @@ int main()
   // CONSTS
   const double kDOWNSAMPLE_VOXEL_SIZE = 0.05;
   const double kNORMAL_ESTIMATION_RADIUS = 0.3;
-  const int kBATCH_SIZE = 16;
+  const int kBATCH_SIZE = 4;
   const int kEPOCHS = 100;
   int kN = 2048;
   bool kUSE_NORMALS = true;
   const int kNUM_CLASSES = 14;
-  const bool kRESUME_TRAINING = false;
+  const bool kRESUME_TRAINING = true;
 
   // use dynamic LR
   double learning_rate = 0.001;
