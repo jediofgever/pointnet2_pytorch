@@ -34,7 +34,7 @@ int main()
   torch::Device cuda_device = torch::kCUDA;
 
   poss_dataset::POSSDataset::Parameters params;
-  params.root_dir = "/home/atas/poss_data";
+  params.root_dir = "/home/fetulahatas1/poss_data";
   params.device = cuda_device;
   params.num_point_per_batch = kN;
   params.downsample_leaf_size = kDOWNSAMPLE_VOXEL_SIZE;
@@ -56,7 +56,7 @@ int main()
   pointnet2_sem_seg::PointNet2SemSeg net(kNUM_CLASSES);
 
   torch::serialize::InputArchive arc;
-  arc.load_from("/home/atas/pointnet2_pytorch/log/best_loss_model.pt", cuda_device);
+  arc.load_from("/home/fetulahatas1/pointnet2_pytorch/log/best_loss_model.pt", cuda_device);
 
   net.load(arc);
   net.to(cuda_device);
@@ -126,8 +126,8 @@ int main()
       &original_input, predicted_cloud, &std::get<1>(predicted_label));
 
     pcl::PCDWriter wr;
-    wr.writeASCII("/home/atas/gt_cloud.pcd", *gt_cloud);
-    wr.writeASCII("/home/atas/predicted_cloud.pcd", *predicted_cloud);
+    wr.writeASCII("/home/fetulahatas1/gt_cloud.pcd", *gt_cloud);
+    wr.writeASCII("/home/fetulahatas1/predicted_cloud.pcd", *predicted_cloud);
   }
 
   overall_batch_accu = static_cast<double>(num_correct_points) /
