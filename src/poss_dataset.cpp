@@ -134,7 +134,7 @@ POSSDataset::POSSDataset(Parameters params)
         // WHEN TRAINING AND TESTING WE NORMALIZE CLOUD GRIDS TO [-1.0 , 1.0] RANGE
         auto normalized_cloud = normalizeCloud(cropped_cloud);
 
-        testLabels(cropped_cloud);
+        // testLabels(cropped_cloud);
         at::Tensor selected_indices;
 
         // COMBINE ALL FEATURES TO XYZ_ TENSOR
