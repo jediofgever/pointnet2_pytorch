@@ -85,7 +85,7 @@ POSSDataset::POSSDataset(Parameters params)
 
     for (int i = 1; i < curr_sequence_data_filenames.size() + 1; i++) {
 
-      if (i % 10 != 0) {
+      if (i % 100 != 0) {
         continue;
       }
 
@@ -438,7 +438,7 @@ void POSSDataset::testLabels(
   test_cloud->height = 1;
   test_cloud->width = cloud->points.size();
   pcl::PCDWriter wr;
-  wr.writeASCII("/home/fetulahatas1/test_poss_labels.pcd", *test_cloud);
+  wr.writeASCII("/home/atas/test_poss_labels.pcd", *test_cloud);
 }
 
 pcl::PointCloud<pcl::PointXYZRGBL>::Ptr POSSDataset::stitchLabels(
