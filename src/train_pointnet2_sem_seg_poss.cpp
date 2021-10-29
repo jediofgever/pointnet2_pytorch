@@ -21,14 +21,14 @@ int main()
   pointnet2_utils::check_avail_device();
 
   // CONSTS
-  const double kDOWNSAMPLE_VOXEL_SIZE = 0.05;
-  const double kNORMAL_ESTIMATION_RADIUS = 0.3;
-  const int kBATCH_SIZE = 4;
+  const double kDOWNSAMPLE_VOXEL_SIZE = 0.00;
+  const double kNORMAL_ESTIMATION_RADIUS = 0.2;
+  const int kBATCH_SIZE = 1;
   const int kEPOCHS = 100;
-  int kN = 2048;
+  int kN = 512;
   bool kUSE_NORMALS = true;
   const int kNUM_CLASSES = 14;
-  const bool kRESUME_TRAINING = true;
+  const bool kRESUME_TRAINING = false;
 
   // use dynamic LR
   double learning_rate = 0.001;

@@ -113,65 +113,77 @@ POSSDataset::POSSDataset(Parameters params)
           std::endl;
       }
 
-      double y_step_size = 8.0;
-      double max_x = 16.0;
-      double min_x = -16.0;
-      double x_step_size = 16.0;
+      double max_x = 32.0;
+      double min_x = -32.0;
+      double max_y = 6.0;
+      double min_y = -6.0;
+
+      double x_step_size = 2.0;
+      double y_step_size = 2.0;
 
       for (double k = min_x; k < max_x; k += x_step_size) {
+        for (double j = min_y; j < max_y; j += y_step_size) {
 
-        // CROP CLOUD
-        auto cropped_cloud = cropCloud<pcl::PointXYZRGBL>(
-          cloud,
-          Eigen::Vector4f(-y_step_size, k, -4.0f, 1.0f),
-          Eigen::Vector4f(y_step_size, k + x_step_size, 4.0f, 1.0f),
-          false);
+          // CROP CLOUD
+          auto cropped_cloud = cropCloud<pcl::PointXYZRGBL>(
+            cloud,
+            Eigen::Vector4f(j, k, -4.0f, 1.0f),
+            Eigen::Vector4f(j + y_step_size, k + x_step_size, 4.0f, 1.0f),
+            false);
 
-        // NORMALS MIGHT BE USED AS FEATURES
-        pcl::PointCloud<pcl::Normal> normals;
-        normals = estimateCloudNormals(cropped_cloud, params.normal_estimation_radius);
+          if (cropped_cloud->points.size() < params.num_point_per_batch) {
+            continue;
+          } else {
+            std::cout << "POSSDataset: Found a suitable chop with points: " <<
+              cropped_cloud->points.size() << std::endl;
+          }
 
-        // WHEN TRAINING AND TESTING WE NORMALIZE CLOUD GRIDS TO [-1.0 , 1.0] RANGE
-        auto normalized_cloud = normalizeCloud(cropped_cloud);
+          // NORMALS MIGHT BE USED AS FEATURES
+          pcl::PointCloud<pcl::Normal> normals;
+          normals = estimateCloudNormals(cropped_cloud, params.normal_estimation_radius);
 
-        testLabels(cropped_cloud);
-        at::Tensor selected_indices;
+          // WHEN TRAINING AND TESTING WE NORMALIZE CLOUD GRIDS TO [-1.0 , 1.0] RANGE
+          auto normalized_cloud = normalizeCloud(cropped_cloud);
 
-        // COMBINE ALL FEATURES TO XYZ_ TENSOR
-        auto normalized_xyz_and_label_pair = pclXYZFeature2Tensor(
-          normalized_cloud,
-          params.num_point_per_batch,
-          params.device, selected_indices);
+          testLabels(cropped_cloud);
+          at::Tensor selected_indices;
 
-        std::cout << "POSSDataset: shape of selected_indices " << selected_indices.sizes() <<
-          std::endl;
+          // COMBINE ALL FEATURES TO XYZ_ TENSOR
+          auto normalized_xyz_and_label_pair = pclXYZFeature2Tensor(
+            normalized_cloud,
+            params.num_point_per_batch,
+            params.device, selected_indices);
 
-        at::Tensor normals_tensor = pclNormalFeature2Tensor(
-          normals,
-          &selected_indices,
-          params.device);
+          std::cout << "POSSDataset: shape of selected_indices " << selected_indices.sizes() <<
+            std::endl;
 
-        // PUSH GROUND TRUTH LABELS TO LABELS_
-        at::Tensor intensities = extractIntensities(
-          cropped_cloud,
-          &selected_indices,
-          params.device);
+          at::Tensor normals_tensor = pclNormalFeature2Tensor(
+            normals,
+            &selected_indices,
+            params.device);
 
-        // DEFAULT FETAURES ARE JUST XYZ(positions)
-        auto xyz = normalized_xyz_and_label_pair.first;
-        auto labels = normalized_xyz_and_label_pair.second;
+          // PUSH GROUND TRUTH LABELS TO LABELS_
+          at::Tensor intensities = extractIntensities(
+            cropped_cloud,
+            &selected_indices,
+            params.device);
 
-        // INIIALLY ASSIGN XYZ_, LABELS_ AND
-        if (!xyz_.sizes().front()) {
-          xyz_ = xyz;
-          normals_ = normals_tensor;
-          intensities_ = intensities;
-          labels_ = labels;
-        } else {
-          xyz_ = torch::cat({xyz_, xyz}, 0);
-          normals_ = torch::cat({normals_, normals_tensor}, 0);
-          intensities_ = torch::cat({intensities_, intensities}, 0);
-          labels_ = torch::cat({labels_, labels}, 0);
+          // DEFAULT FETAURES ARE JUST XYZ(positions)
+          auto xyz = normalized_xyz_and_label_pair.first;
+          auto labels = normalized_xyz_and_label_pair.second;
+
+          // INIIALLY ASSIGN XYZ_, LABELS_ AND
+          if (!xyz_.sizes().front()) {
+            xyz_ = xyz;
+            normals_ = normals_tensor;
+            intensities_ = intensities;
+            labels_ = labels;
+          } else {
+            xyz_ = torch::cat({xyz_, xyz}, 0);
+            normals_ = torch::cat({normals_, normals_tensor}, 0);
+            intensities_ = torch::cat({intensities_, intensities}, 0);
+            labels_ = torch::cat({labels_, labels}, 0);
+          }
         }
       }
     }
