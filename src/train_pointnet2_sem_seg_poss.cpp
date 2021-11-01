@@ -39,7 +39,7 @@ int main()
   torch::Device cpu_device = torch::kCPU;
 
   poss_dataset::POSSDataset::Parameters params;
-  params.root_dir = "/home/atas/poss_data";
+  params.root_dir = "/home/fetulahatas1/poss_data";
   params.device = cuda_device;
   params.num_point_per_batch = kN;
   params.downsample_leaf_size = kDOWNSAMPLE_VOXEL_SIZE;
@@ -70,11 +70,11 @@ int main()
 
   if (kRESUME_TRAINING) {
     torch::serialize::InputArchive arc;
-    arc.load_from("/home/atas/pointnet2_pytorch/weights_from_gl/best_loss_model.pt", cuda_device);
+    arc.load_from("/home/fetulahatas1/pointnet2_pytorch/weights_from_gl/best_loss_model.pt", cuda_device);
     net->load(arc);
     net->train();
     torch::serialize::InputArchive arc_opt;
-    arc_opt.load_from("/home/atas/pointnet2_pytorch/weights_from_gl/best_optim_model.pt", cuda_device);
+    arc_opt.load_from("/home/fetulahatas1/pointnet2_pytorch/weights_from_gl/best_optim_model.pt", cuda_device);
     optimizer.load(arc_opt);
   }
 
@@ -148,8 +148,8 @@ int main()
         &original_input, predicted_cloud, &std::get<1>(predicted_label));
 
       pcl::PCDWriter wr;
-      wr.writeASCII("/home/atas/gt_cloud.pcd", *gt_cloud);
-      wr.writeASCII("/home/atas/predicted_cloud.pcd", *predicted_cloud);
+      wr.writeASCII("/home/fetulahatas1/gt_cloud.pcd", *gt_cloud);
+      wr.writeASCII("/home/fetulahatas1/predicted_cloud.pcd", *predicted_cloud);
     }
 
     // Decay learning rate
@@ -172,8 +172,8 @@ int main()
       std::cout << "Found Best Loss at epoch: " << i << std::endl;
       std::cout << "Saving model and optimizer..." << std::endl;
       try {
-        torch::save(net, "/home/atas/pointnet2_pytorch/log/best_loss_model.pt");
-        torch::save(optimizer, "/home/atas/pointnet2_pytorch/log/best_optim_model.pt");
+        torch::save(net, "/home/fetulahatas1/pointnet2_pytorch/log/best_loss_model.pt");
+        torch::save(optimizer, "/home/fetulahatas1/pointnet2_pytorch/log/best_optim_model.pt");
       } catch (const std::exception & e) {
         std::cout << "Failed to save model and optimizer..." << std::endl;
         std::cerr << e.what() << '\n';
