@@ -85,7 +85,7 @@ POSSDataset::POSSDataset(Parameters params)
 
     for (int i = 1; i < curr_sequence_data_filenames.size() + 1; i++) {
 
-      if (i % 100 != 0) {
+      if (i % 2 != 0) {
         continue;
       }
 
@@ -113,13 +113,13 @@ POSSDataset::POSSDataset(Parameters params)
           std::endl;
       }
 
-      double max_x = 32.0;
-      double min_x = -32.0;
+      double max_x = 20.0;
+      double min_x = -20.0;
       double max_y = 6.0;
       double min_y = -6.0;
 
-      double x_step_size = 2.0;
-      double y_step_size = 2.0;
+      double x_step_size = 20.0;
+      double y_step_size = 12.0;
 
       for (double k = min_x; k < max_x; k += x_step_size) {
         for (double j = min_y; j < max_y; j += y_step_size) {
@@ -145,7 +145,7 @@ POSSDataset::POSSDataset(Parameters params)
           // WHEN TRAINING AND TESTING WE NORMALIZE CLOUD GRIDS TO [-1.0 , 1.0] RANGE
           auto normalized_cloud = normalizeCloud(cropped_cloud);
 
-          testLabels(cropped_cloud);
+          //testLabels(cropped_cloud);
           at::Tensor selected_indices;
 
           // COMBINE ALL FEATURES TO XYZ_ TENSOR
